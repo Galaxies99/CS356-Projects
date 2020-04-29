@@ -26,13 +26,12 @@ int parse(char *inst, char **args);
 void debug_parse(char *args[], int argn);
 
 int main(void) {
-	char *args[MAX_LINE / 2 + 1],								// arguments
-	     *inst,																	// initial instruction
-	     *last_inst;														// last instruction
-	int have_last_inst = 0,											// whether have the last instruction
-	    concurrent = 0;													// concurrent
-	char *in_file,															// in redirect filename
-	     *out_file;															// out redirect filename
+	// arguments, instruction, last instruction
+	char *args[MAX_LINE / 2 + 1], *inst, *last_inst;
+	// whether have the last instruction, cocurrent status
+	int have_last_inst = 0, concurrent = 0;
+	// input redirect filename, output redirect filename
+	char *in_file, *out_file;
 
 	inst = (char*) malloc(MAX_LINE * sizeof(char));
 	last_inst = (char*) malloc(MAX_LINE * sizeof(char));
@@ -46,23 +45,25 @@ int main(void) {
 	pid_t pid;
 
 	while(should_run) {
-		concurrent = 0;														// concurrent execution
+		concurrent = 0;
 		clear_str(inst);
     
 		printf("osh> ");
 		fflush(stdout);
     
-		fgets(inst, MAX_LINE, stdin);							// read the command
+		fgets(inst, MAX_LINE, stdin);
     
 		standardlize_inst(inst);
 		concurrent = check_concurrent(inst);
-	  
-		if (strcmp(inst, "exit") == 0) {					// exit shell
+
+		// exit shell	  
+		if (strcmp(inst, "exit") == 0) {
 			should_run = 0;
 			continue;
 		}
 
-		if (strcmp(inst, "!!") == 0) {						// execute the last instruction
+		// execute the last instruction
+		if (strcmp(inst, "!!") == 0) {
 			if (have_last_inst == 0) {
 				fprintf(stderr, "Error: No commands in history.\n");
 				continue;
@@ -75,8 +76,10 @@ int main(void) {
 		pid = fork();
 		if (pid < 0) fprintf(stderr, "Error: Fork failed!\n");
 		else {
-			if (pid == 0) {													// child process 
-				int error_occur = 0;									// whether an error has occured
+			if (pid == 0) {
+				// child process 
+				// whether an error has occured
+				int error_occur = 0;
 
 				// allocate space for commands & arguments
 				for (int i = 0; i <= MAX_LINE / 2; ++ i) 
@@ -104,13 +107,15 @@ int main(void) {
 						break;
 					}
 
-				if(pipe_pos >= 0) {										// pipe found
+				if(pipe_pos >= 0) {										
+					// pipe found
 					if (pipe_pos == 0 || pipe_pos == argn - 1) {
 						fprintf(stderr, "Error: Unexpected syntax '|'.\n");
 						error_occur = 1;
 					}
-					
-					int pipe_fd[2];											// pipe line
+													
+					// pipe fd
+					int pipe_fd[2];			
 
 					if (pipe(pipe_fd) == -1) {
 						fprintf(stderr, "Error: Pipe Failed!\n");
@@ -124,7 +129,8 @@ int main(void) {
 							fprintf(stderr, "Error: Fork failed!\n");
 							error_occur = 1;
 						} else {
-							if (pid == 0) {									// grandchild process
+							if (pid == 0) {
+								// grandchild process
 								for (int i = pipe_pos; i < argn; ++ i) {
 									free(args[i]);
 									args[i] = NULL;
@@ -149,7 +155,8 @@ int main(void) {
 								free(out_file); 
 								
 								exit(error_occur);
-							} else {												// child process
+							} else {
+								// child process
 								wait(NULL);
 								for (int i = 0; i <= pipe_pos; ++ i) free(args[i]);
 								for (int i = pipe_pos + 1; i < argn; ++ i) args[i - pipe_pos - 1] = args[i];
@@ -168,7 +175,7 @@ int main(void) {
 							}
 						}
 					}
-				} else {															// no pipe found 
+				} else {
 					// find in_redirect or out_redirect
 					int in_redirect = 0, out_redirect = 0, in_fd = -1, out_fd = -1;
 					while (argn >= 2 && (strcmp(args[argn - 2], "<") == 0 || strcmp(args[argn - 2], ">") == 0)) {
@@ -210,8 +217,8 @@ int main(void) {
 						}
 					}
 				
-
-					if (error_occur == 0 && argn != 0)	// not an empty instruction & no error occur
+					// not an empty instruction & no error occur, then execute the instruction
+					if (error_occur == 0 && argn != 0)	
 						execvp(args[0], args);
 					
 					// close the files
@@ -226,10 +233,12 @@ int main(void) {
 				free(in_file);
 				free(out_file); 
 				
-				exit(error_occur);										// child process end
-			} else {																// parent process
+				// child process exit
+				exit(error_occur);
+			} else {
+				// parent process
 				if(concurrent == 0) wait(NULL);
-      }
+			}
 		}
 
 		if(have_last_inst == 0) have_last_inst = 1;
