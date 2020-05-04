@@ -82,7 +82,7 @@ int main(void) {
 	int err;
 	
 	// Input
-	printf("Please input the number of elements (0 <= n <= 1000000): ");
+	printf("Please input the length of the array (0 <= n <= 1000000): ");
 	scanf("%d", &n);
   
 	if(n < 0 || n > 1000000) {
@@ -91,10 +91,26 @@ int main(void) {
 	}
   
 	arr = (int *) malloc (n * sizeof(int)); 
-  
-	printf("Please input the elements: \n");
-	for (int i = 0; i < n; ++ i)
-		scanf("%d", &arr[i]);
+
+	// Input the elements or Generate the elements.
+	char opt[5];
+	printf("Do you want to generate the random elements automatically (y/n): ");
+	scanf("%s", opt);
+	if(opt[0] == 'y') {
+		for (int i = 0; i < n; ++ i)
+			arr[i] = rand() % 1000;
+		printf("The original array: \n");
+		for (int i = 0; i < n; ++ i)
+			printf("%d ", arr[i]);
+		printf("\n");
+	} else if (opt[0] == 'n') {  
+		printf("Please input the array elements: \n");
+		for (int i = 0; i < n; ++ i)
+			scanf("%d", &arr[i]);
+	} else {
+		printf("Error: invalid input!\n");
+		exit(1);
+	}
 
 	// Prepare parameters for sorting threads.
 	struct array_parameter param[2];
