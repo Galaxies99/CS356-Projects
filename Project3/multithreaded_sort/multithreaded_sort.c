@@ -12,7 +12,7 @@ struct array_parameter {
 };
 
 struct merge_parameter {
-  struct array_parameter *arg[2];
+	struct array_parameter *arg[2];
 	struct array_parameter *res;
 };
 
@@ -23,12 +23,12 @@ int qsort_cmp(const void *a, const void *b) {
 void* sorting_routine(void *arg) {
 	struct array_parameter *data = (struct array_parameter *) arg;
 
-	// Quick sort provided by <stdlib.h>
+	// Quick sort provided by <stdlib.h>.
 	qsort(data -> arr, data -> n, sizeof(int), qsort_cmp);
 	
-	// return
-  void *ret = data;
-  return ret;
+	// Return.
+	void *ret = data;
+	return ret;
 }
 
 void* merging_routine(void *arg) {
@@ -73,7 +73,7 @@ void* merging_routine(void *arg) {
 		exit(1);	
 	}
 	
-	// return;
+	// Return.
 	void *ret = data;
 	return ret;
 }
@@ -83,17 +83,17 @@ int main(void) {
 	
 	// Input
 	printf("Please input the number of elements (0 <= n <= 1000000): ");
-  scanf("%d", &n);
+	scanf("%d", &n);
   
-  if(n < 0 || n > 1000000) {
-    printf("Error: n should be in range [0, 1000000]!\n");
-    exit(1);
-  }
+	if(n < 0 || n > 1000000) {
+		printf("Error: n should be in range [0, 1000000]!\n");
+		exit(1);
+	}
   
-  arr = (int *) malloc (n * sizeof(int)); 
+	arr = (int *) malloc (n * sizeof(int)); 
   
-  printf("Please input the elements: \n");
-  for (int i = 0; i < n; ++ i)
+	printf("Please input the elements: \n");
+	for (int i = 0; i < n; ++ i)
 		scanf("%d", &arr[i]);
 
 	// Prepare parameters for sorting threads.
@@ -104,7 +104,7 @@ int main(void) {
 	// param[0].arr = &arr[0];
 	// |-- thread 1 parameters
 	param[1].n = n - n / 2;
-  param[1].arr = &arr[n / 2];
+	param[1].arr = &arr[n / 2];
 	
 	// Create sorting threads & passing parameters.
 	pthread_t sorting_thread[2];
@@ -119,8 +119,8 @@ int main(void) {
 	// Receive output from sorting threads & prepare parameters for merging thread.
 	void *output;
 	struct merge_parameter m_param;
-  for (int i = 0; i < 2; ++ i) {
-    err = pthread_join(sorting_thread[i], &output);
+	for (int i = 0; i < 2; ++ i) {
+		err = pthread_join(sorting_thread[i], &output);
 		if (err) {
 			printf("Error: thread join failed!\n");
 			exit(1);
@@ -131,7 +131,7 @@ int main(void) {
 	// Create merging thread & passing parameters.
 	pthread_t merging_thread;
 	err = pthread_create(&merging_thread, NULL, merging_routine, &m_param);
-  if (err) {
+	if (err) {
 		printf("Error: create thread failed!\n");
 		exit(1);
 	}
