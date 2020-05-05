@@ -7,9 +7,9 @@ public class Mergesort extends RecursiveAction {
 
 	private int begin;
 	private int end;
-	private int[] array;
+	private Integer[] array;
 
-	public Mergesort(int begin, int end, int[] array) {
+	public Mergesort(int begin, int end, Integer[] array) {
 		this.begin = begin;
 		this.end = end;
 		this.array = array;
@@ -20,8 +20,8 @@ public class Mergesort extends RecursiveAction {
 			// Sort directly using Bubble Sort
 			for (int i = end; i >= begin + 1; -- i)
 				for (int j = begin; j < i; ++ j)
-					if (array[j] > array[j + 1]) {
-						int temp = array[j];
+					if (array[j].compareTo(array[j + 1]) > 0) {
+						Integer temp = array[j];
 						array[j] = array[j + 1];
 						array[j + 1] = temp;
 					}
@@ -38,11 +38,11 @@ public class Mergesort extends RecursiveAction {
 			leftTask.join();
 			rightTask.join();
 
-			int[] temp = new int [end - begin + 1];
+			Integer[] temp = new Integer [end - begin + 1];
 			
 			int pos1 = begin, pos2 = mid + 1, k = 0;
 			while (pos1 <= mid && pos2 <= end) {
-				if (array[pos1] <= array[pos2]) temp[k ++] = array[pos1 ++];
+				if (array[pos1].compareTo(array[pos2]) <= 0) temp[k ++] = array[pos1 ++];
 				else temp[k ++] = array[pos2 ++];
 			}
 			while (pos1 <= mid) temp[k ++] = array[pos1 ++];
@@ -64,7 +64,7 @@ public class Mergesort extends RecursiveAction {
 			System.exit(1);
 		}
 
-		int[] array = new int[n];
+		Integer[] array = new Integer[n];
 
 		System.out.print("Do you want to generate the random elements automatically (y/n): ");
 		char opt = sc.next().charAt(0);
