@@ -5,8 +5,8 @@
 #ifndef TASK_H
 #define TASK_H
 
-// the value of current tid.
-int tid_value = 0;
+// the task identifier
+extern int tid_value;
 
 // representation of a task
 typedef struct task {

@@ -7,10 +7,8 @@
 # include "cpu.h"
 # include "schedulers.h"
 
-# define PRIORITY_NUMBER_LOW 1
-# define PRIORITY_NUMBER_HIGH 10
-# define PRIORITY_NUMBER_SIZE (PRIORITY_NUMBER_HIGH - PRIORITY_NUMBER_LOW + 1)
-# define PRIORITY_BASE PRIORITY_NUMBER_LOW
+# define PRIORITY_NUMBER_SIZE (MAX_PRIORITY - MIN_PRIORITY + 1)
+# define PRIORITY_BASE MIN_PRIORITY
 
 struct node *head[PRIORITY_NUMBER_SIZE] = {}; 
 
@@ -114,7 +112,7 @@ void print_statistics() {
 }
 
 void schedule() {
-	for (int i = PRIORITY_NUMBER_HIGH; i >= PRIORITY_NUMBER_LOW; -- i)
+	for (int i = MAX_PRIORITY; i >= MIN_PRIORITY; -- i)
 		while (schedule_next(i) == 0);
 	print_statistics();
 }
