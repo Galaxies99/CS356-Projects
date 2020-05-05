@@ -3,17 +3,21 @@
 # include <pthread.h>
 # include <stdlib.h>
 
+// the size of the array.
 int n;
+// original array.
 int *arr;
+// result array.
+int *res;
 
-struct array_parameter {
-	int n;
-	int *arr;
+struct parameters {
+	// the sorting thread will sort arr[begin ... end]
+	int begin, end;
 };
 
-struct merge_parameter {
-	struct array_parameter *arg[2];
-	struct array_parameter *res;
+struct merge_parameters {
+	// the merging thread will merge arr[begin ... mid] and arr[mid + 1, end]
+	int begin, mid, end;
 };
 
 int qsort_cmp(const void *a, const void *b) {
@@ -21,61 +25,44 @@ int qsort_cmp(const void *a, const void *b) {
 }
 
 void* sorting_routine(void *arg) {
-	struct array_parameter *data = (struct array_parameter *) arg;
+	struct parameters *data = (struct parameters *) arg;
+	
+	if (data -> end - data -> begin < 0) return NULL;
 
 	// Quick sort provided by <stdlib.h>.
-	qsort(data -> arr, data -> n, sizeof(int), qsort_cmp);
+	qsort(arr + data -> begin, data -> end - data -> begin + 1, sizeof(int), qsort_cmp);
 	
 	// Return.
-	void *ret = data;
-	return ret;
+	return NULL;
 }
 
 void* merging_routine(void *arg) {
-	struct merge_parameter *data = (struct merge_parameter *) arg;
-	
-	// Allocate result spaces.
-	data -> res = (struct array_parameter *) malloc (sizeof(struct array_parameter));
-	data -> res -> n = data -> arg[0] -> n + data -> arg[1] -> n;
-	data -> res -> arr = (int *) malloc (data -> res -> n * sizeof(int));
-
+	struct merge_parameters *data = (struct merge_parameters *) arg;
 	// Merge two sorted arrays.
 	// |-- pos of result
-	int res_pos = 0;
+	int res_pos = data -> begin;
 	// |-- pos of two arrays.
-	int pos0 = 0, pos1 = 0;
-	// |-- the current elements of two arrays.				
-	int element0, element1;
-	// |-- whether to fetch the elements (1 - fetch, 0 - not fetch).
-	int fetch0 = 1, fetch1 = 1;
+	int pos0 = data -> begin, pos1 = data -> mid + 1;
 
 	// |-- comparing & merging.
-	while (pos0 < data -> arg[0] -> n && pos1 < data -> arg[1] -> n) {
-		if (fetch0) element0 = data -> arg[0] -> arr[pos0];
-		if (fetch1) element1 = data -> arg[1] -> arr[pos1];
-		if (element0 <= element1) {
-			data -> res -> arr[res_pos ++] = element0;
-			pos0 ++; fetch0 = 1; fetch1 = 0;
-		} else{
-			data -> res -> arr[res_pos ++] = element1;
-			pos1 ++; fetch0 = 0; fetch1 = 1;
-		}
+	while (pos0 <= data -> mid && pos1 <= data -> end) {
+		if (arr[pos0] <= arr[pos1]) res[res_pos ++] = arr[pos0 ++];
+		else res[res_pos ++] = arr[pos1 ++];
 	}
 	// |-- the rest of the elements.
-	while (pos0 < data -> arg[0] -> n)
-		data -> res -> arr[res_pos ++] = data -> arg[0] -> arr[pos0 ++];
-	while (pos1 < data -> arg[1] -> n)
-		data -> res -> arr[res_pos ++] = data -> arg[1] -> arr[pos1 ++];
+	while (pos0 <= data -> mid)
+		res[res_pos ++] = arr[pos0 ++];
+	while (pos1 <= data -> end)
+		res[res_pos ++] = arr[pos1 ++];
 	
 	// Check the result.
-	if (res_pos != data -> res -> n) {
+	if (res_pos != data -> end + 1) {
 		printf("Error: unexpected error occurs when merging.\n");
 		exit(1);	
 	}
 	
 	// Return.
-	void *ret = data;
-	return ret;
+	return NULL;
 }
 	
 int main(void) {
@@ -89,8 +76,10 @@ int main(void) {
 		printf("Error: n should be in range [0, 1000000]!\n");
 		exit(1);
 	}
-  
+
+	// Allocate spaces for arrays.  
 	arr = (int *) malloc (n * sizeof(int)); 
+	res = (int *) malloc (n * sizeof(int));
 
 	// Input the elements or Generate the elements.
 	char opt[5];
@@ -113,14 +102,13 @@ int main(void) {
 	}
 
 	// Prepare parameters for sorting threads.
-	struct array_parameter param[2];
+	struct parameters param[2];
 	// |-- thread 0 parameters  
-	param[0].n = n / 2;
-	param[0].arr = arr;
-	// param[0].arr = &arr[0];
+	param[0].begin = 0;
+	param[0].end = n / 2;
 	// |-- thread 1 parameters
-	param[1].n = n - n / 2;
-	param[1].arr = &arr[n / 2];
+	param[1].begin = n / 2 + 1;
+	param[1].end = n - 1;
 	
 	// Create sorting threads & passing parameters.
 	pthread_t sorting_thread[2];
@@ -132,17 +120,21 @@ int main(void) {
 		}
 	}
 
-	// Receive output from sorting threads & prepare parameters for merging thread.
+	// Sorting threads end.
 	void *output;
-	struct merge_parameter m_param;
 	for (int i = 0; i < 2; ++ i) {
 		err = pthread_join(sorting_thread[i], &output);
 		if (err) {
 			printf("Error: thread join failed!\n");
 			exit(1);
 		}
-		m_param.arg[i] = (struct array_parameter *) output;
 	}
+
+	// Prepare parameters for merging thread.
+	struct merge_parameters m_param;
+	m_param.begin = 0;
+	m_param.mid = n / 2;
+	m_param.end = n - 1;
 
 	// Create merging thread & passing parameters.
 	pthread_t merging_thread;
@@ -152,23 +144,22 @@ int main(void) {
 		exit(1);
 	}
 
-	// Receive output from merging thread
+	// Merging thread end.
 	err = pthread_join(merging_thread, &output);
-	struct merge_parameter *ans = (struct merge_parameter *) output;
 	if (err) {
 		printf("Error: thread join failed!\n");
 		exit(1);
 	}
+
 	// Print the result	(Output)
 	printf("The array after sorting: \n");
-	for (int i = 0; i < ans -> res -> n; ++ i)
-		printf("%d ", ans -> res -> arr[i]);
+	for (int i = 0; i < n; ++ i)
+		printf("%d ", res[i]);
 	printf("\n");
 	
 	// Release the spaces
-	free(ans -> res -> arr);
-	free(ans -> res);
 	free(arr);
+	free(res);
 	
 	return 0;
 }
