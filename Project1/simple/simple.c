@@ -12,7 +12,7 @@ int simple_init(void) {
 
 void simple_exit(void) {
   printk(KERN_INFO "Removing Kernel Module\n");
-	printk(KERN_INFO "The greatest common divisor of %d and %d is: %lu\n", 3300, 24, gcd(3300, 24));
+  printk(KERN_INFO "The greatest common divisor of %d and %d is: %lu\n", 3300, 24, gcd(3300, 24));
 }
 
 module_init(simple_init);
