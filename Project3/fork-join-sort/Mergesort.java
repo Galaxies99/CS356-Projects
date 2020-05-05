@@ -2,7 +2,7 @@ import java.util.Arrays;
 import java.util.Scanner;
 import java.util.concurrent.*;
 
-public class Mergesort extends RecursiveTask<Integer> {
+public class Mergesort extends RecursiveAction {
 	static final int THRESHOLD = 10;
 
 	private int begin;
@@ -15,7 +15,7 @@ public class Mergesort extends RecursiveTask<Integer> {
 		this.array = array;
 	}
 
-	protected Integer compute() {
+	protected void compute() {
 		if (end - begin + 1 <= THRESHOLD) {
 			// Sort directly using Bubble Sort
 			for (int i = end; i >= begin + 1; -- i)
@@ -51,7 +51,6 @@ public class Mergesort extends RecursiveTask<Integer> {
 			for (int i = 0; i < k; ++ i)
 				array[i + begin] = temp[i];
 		}
-		return null;
 	}
 
 	public static void main(String[] args) {
