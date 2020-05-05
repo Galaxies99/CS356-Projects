@@ -151,13 +151,13 @@ int main(void) {
 		exit(1);
 	}
 
-	// Print the result	(Output)
+	// Print the result	(Output).
 	printf("The array after sorting: \n");
 	for (int i = 0; i < n; ++ i)
 		printf("%d ", res[i]);
 	printf("\n");
 	
-	// Release the spaces
+	// Release the spaces.
 	free(arr);
 	free(res);
 	
