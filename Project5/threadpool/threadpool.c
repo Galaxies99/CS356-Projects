@@ -4,6 +4,7 @@
 
 #include <pthread.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <semaphore.h>
 #include "threadpool.h"
@@ -175,7 +176,7 @@ void pool_shutdown(void) {
 		exit(1);
 	}
 	
-	// destroy the semaphores
+	// destroy the semaphore
 	err = sem_destroy(&wait_sem);
 	if (err) {
 		fprintf(stderr, "Error: semaphore destroy error!\n");
