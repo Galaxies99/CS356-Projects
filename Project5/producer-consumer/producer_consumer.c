@@ -7,26 +7,6 @@
 
 # define TRUE 1
 
-// buffer implementation: circular queue
-buffer_item buf[BUFFER_SIZE + 1];
-int head, tail;
-
-// insert an item to the buffer
-int insert_item(buffer_item item) {
-	if ((tail + 1) % (BUFFER_SIZE + 1) == head) return -1;
-	tail = (tail + 1) % (BUFFER_SIZE + 1);
-	buf[tail] = item;
-	return 0;
-}
-
-// remove an item from the buffer
-int remove_item(buffer_item *item) {
-	if (head == tail) return -1;
-	head = (head + 1) % (BUFFER_SIZE + 1);
-	*item = buf[head];
-	return 0;
-}
-
 // semaphore empty, full
 sem_t empty, full;
 // mutex lock mutex
@@ -104,7 +84,7 @@ int main(int argc, char *argv[]) {
 	consumer_number = atoi(argv[3]);
 
 	// initialization
-	head = 0; tail = 0;
+	buffer_initialization();
 	terminate_flag = 0;
 	// |-- create the mutex lock
 	err = pthread_mutex_init(&mutex, NULL);
