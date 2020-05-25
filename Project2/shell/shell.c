@@ -45,11 +45,12 @@ int main(void) {
 	pid_t pid;
 
 	while(should_run) {
-		concurrent = 0;
-		clear_str(inst);
-    
 		printf("osh> ");
 		fflush(stdout);
+		if (concurrent) wait(NULL);
+
+		concurrent = 0;
+		clear_str(inst);
     
 		fgets(inst, MAX_LINE, stdin);
     
@@ -232,7 +233,7 @@ int main(void) {
 				free(last_inst); 
 				free(in_file);
 				free(out_file); 
-				
+	
 				// child process exit
 				exit(error_occur);
 			} else {
