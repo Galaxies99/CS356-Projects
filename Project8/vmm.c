@@ -239,8 +239,8 @@ int get_frame_num(int page_num) {
 	} else {
 		// Page fault.
 		++ page_fault_count;
-		vi_page_table[page_num] = 1;
 		page_table[page_num] = add_page_into_memory(page_num);
+		vi_page_table[page_num] = 1;
 		update_TLB(page_num, page_table[page_num]);
 		return page_table[page_num];
 	}
