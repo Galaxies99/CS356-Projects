@@ -1,0 +1,603 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage{ctex}
+\usepackage{amsmath,amscd,amsbsy,amssymb,latexsym,url,bm,amsthm}
+\usepackage{epsfig,graphicx,subfigure}
+\usepackage{enumitem,balance}
+\usepackage{enumerate}
+\usepackage{wrapfig}
+\usepackage{listings}
+\usepackage{mathrsfs,euscript}
+\usepackage[usenames]{xcolor}
+\usepackage{hyperref}
+\usepackage[vlined,ruled,linesnumbered]{algorithm2e}
+\hypersetup{colorlinks=true,linkcolor=black}
+\lstset{
+    breaklines,
+    basicstyle          =   \ttfamily,          % 基本代码风格
+    commentstyle        =   \rmfamily\itshape,  % 注释的风格，斜体
+    stringstyle         =   \ttfamily,  % 字符串风格
+    flexiblecolumns,                % 别问为什么，加上这个
+    numbers             =   left,   % 行号的位置在左边
+    showspaces          =   false,  % 是否显示空格，显示了有点乱，所以不现实了
+    numberstyle         =   \zihao{-5}\ttfamily,    % 行号的样式，小五号，tt 等宽字体
+    showstringspaces    =   false,
+    captionpos          =   t,      % 这段代码的名字所呈现的位置，t指的是top 上面
+    frame               =   lrtb,   % 显示边框
+    tabsize             =   2,
+}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{exercise}{Exercise}
+\newtheorem*{solution}{Solution}
+\newtheorem*{example}{Example}
+\newtheorem{definition}{Definition}
+\theoremstyle{definition}
+
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+
+\newcommand{\postscript}[2]
+ {\setlength{\epsfxsize}{#2\hsize}
+  \centerline{\epsfbox{#1}}}
+
+\renewcommand{\baselinestretch}{1.0}
+
+\setlength{\oddsidemargin}{-0.365in}
+\setlength{\evensidemargin}{-0.365in}
+\setlength{\topmargin}{-0.3in}
+\setlength{\headheight}{0in}
+\setlength{\headsep}{0in}
+\setlength{\textheight}{10.1in}
+\setlength{\textwidth}{7in}
+\makeatletter \renewenvironment{proof}[1][Proof] {\par\pushQED{\qed}\normalfont\topsep6\p@\@plus6\p@\relax\trivlist\item[\hskip\labelsep\bfseries#1\@addpunct{.}]\ignorespaces}{\popQED\endtrivlist\@endpefalse} \makeatother
+\makeatletter
+\renewenvironment{solution}[1][Solution] {\par\pushQED{\qed}\normalfont\topsep6\p@\@plus6\p@\relax\trivlist\item[\hskip\labelsep\bfseries#1\@addpunct{.}]\ignorespaces}{\popQED\endtrivlist\@endpefalse} \makeatother
+
+\begin{document}
+\noindent
+
+%========================================================================
+\noindent\framebox[1.05\linewidth]{\shortstack[c]{
+\Large{\textbf{Project 7: Contiguous Memory Allocation}}\vspace{1mm}\\
+CS307-Operating System (D), CS356-Operating System Course Design, Chentao Wu, Spring 2020.}}
+\begin{center}
+\footnotesize{\color{blue}Name: 方泓杰 (Hongjie Fang)  \quad Student ID: 518030910150 \quad Email: galaxies@sjtu.edu.cn}
+\end{center}
+
+\section{Contiguous Memory Allocation}
+\subsection{Requirements}
+In Section 9.2 in textbook, we presented different algorithms for contiguous memory allocation. This project will involve managing a contiguous region of memory of size $MAX$ where address may range from $0 \cdots (MAX - 1)$. This project requires us to respond to four different requests.
+\begin{itemize}
+  \item Request for a contiguous block of memory;
+  \item Release of a contiguous block of memory;
+  \item Compact unused holes of memory into one single block;
+  \item Report the regions of free and allocated memory.
+\end{itemize}
+
+The program will be passed the initial amount of memory at startup, and it will allocate memory using one of the three approaches highlighted in Section 9.2.2, depending on the flag that is passed to \texttt{RQ} commands. The flags are:
+\begin{itemize}
+  \item \texttt{F}: first-fit;
+  \item \texttt{B}: best-fit;
+  \item \texttt{W}: worst-fit.
+\end{itemize}
+
+This will require the program keep track of the different holes representing available memory. When a request for memory arrives, it will allocate the memory from one of the available holes based on the allocation strategy, It there is insufficient memory to allocate to a request, it will output an error message and reject the request.
+
+The program will also need to keep track of which region of memory has been allocated to which process. This is necessary to support the \texttt{STAT} command and is also needed when memory is released via the \texttt{RL} command, as the process releasing memory is passed to this command. If a partition being released is adjacent to an existing hole, be sure to combine the two holes into a single hole.
+
+If the user enters \texttt{C} command, the program will compact the set of holes into one larger hole. There are several strategies for implementing compaction, one of which is suggested in Section 9.2.3 in textbook. Be sure to update the beginning address of any processes that have been affected by compaction.
+\subsection{Methods}
+Here are some specific methods of the contiguous memory allocator program.
+\begin{itemize}
+  \item We \underline{use the linked list to keep track of every allocated regions of memory}, and the rest of the memory is the holes. Since we have the size information about the memory, we can keep track of every free regions of memory according to the data we have. Moreover, the adjacent holes causing by \texttt{RL} command is automatically combined, which makes our programming easier.
+  \item For first-fit algorithm, we examine the holes one by one, and if we found a suitable hole, then we will put the process into it.
+  \item For best-fit algorithm and worst-fit algorithm, we examine all holes, and put the process into one suitable hole according to the type of the algorithm.
+  \item For \texttt{STAT} command, we will traverse the linked list and print out all information about the memory allocation.
+  \item For compaction command, we \underline{put all the allocated memory in the front contiguous region}, therefore the holes are automatically compacted into a big one in the end of the memory.
+\end{itemize}
+
+\subsection{Implementation}
+Here is the specific implementation of the contiguous memory allocator (\texttt{allocator.c}).
+\begin{lstlisting}
+# include <stdio.h>
+# include <stdlib.h>
+# include <string.h>
+
+# define LINE_MAX 256
+
+int memory_limit;
+
+typedef struct memory_node {
+	// belong
+	char *bel;
+	// begin, end
+	int beg, end;
+	// next
+	struct memory_node * nxt;
+} mem_node;
+
+mem_node *head = NULL;
+
+
+// Requested by process [process_name], size of [size], memory allocation type [type].
+// If success, return 0; or return 1 with the error message printed in the screen.
+int request(char *process_name, int size, char type) {
+	if (size <= 0) {
+		fprintf(stderr, "[Err] the process size should be positive!\n");
+		return 1;
+	}
+
+	int name_len = strlen(process_name);
+	if (head == NULL) {
+		if (size <= memory_limit) {	
+			head = (mem_node *) malloc (sizeof(mem_node));
+			head -> bel = (char *) malloc (sizeof(char) * (name_len + 1));
+			strcpy(head -> bel, process_name);
+			head -> beg = 0;
+			head -> end = 0 + size - 1;
+			head -> nxt = NULL;
+			return 0;
+		} else {
+			// No enough spaces
+			fprintf(stderr, "[Err] No enough spaces!\n");
+			return 1;
+		}	
+	}
+	
+	// First-fit
+	if (type == 'F') {
+		mem_node *p = head;
+		int hole_len;
+
+		hole_len = p -> beg - 0;
+		if (size <= hole_len) {
+			mem_node *tmp = head;
+			head = (mem_node *) malloc (sizeof(mem_node));
+			head -> bel = (char *) malloc (sizeof(char) * (name_len + 1));
+			strcpy(head -> bel, process_name);
+			head -> beg = 0;
+			head -> end = 0 + size - 1;
+			head -> nxt = tmp;
+			return 0;
+		}
+		
+		while (p -> nxt != NULL) {
+			hole_len = p -> nxt -> beg - p -> end - 1;
+			if (size <= hole_len) {
+				mem_node *tmp = p -> nxt;
+				p -> nxt = (mem_node *) malloc (sizeof(mem_node));
+				p -> nxt -> bel = (char *) malloc (sizeof(char) * (name_len + 1));
+				strcpy(p -> nxt -> bel, process_name);
+				p -> nxt -> beg = p -> end + 1;
+				p -> nxt -> end = p -> nxt -> beg + size - 1;
+				p -> nxt -> nxt = tmp;
+				return 0;
+			}
+			p = p -> nxt;
+		}
+		
+		hole_len = memory_limit - p -> end - 1;
+		if (size <= hole_len) {
+			p -> nxt = (mem_node *) malloc (sizeof(mem_node));
+			p -> nxt -> bel = (char *) malloc (sizeof(char) * (name_len + 1));
+			strcpy(p -> nxt -> bel, process_name);
+			p -> nxt -> beg = p -> end + 1;
+			p -> nxt -> end = p -> nxt -> beg + size - 1;
+			p -> nxt -> nxt = NULL;
+			return 0;
+		}
+
+		// No enough spaces
+		fprintf(stderr, "[Err] No enough spaces!\n");
+		return 1;
+	}
+
+	// Best-fit
+	if (type == 'B') {
+		mem_node *p = head;
+		int hole_len;
+		
+		// position
+		int cur_min = 2e9;		
+		int pos_flag = 0;
+		mem_node *pos;
+		
+		hole_len = p -> beg - 0;
+		if (size <= hole_len && hole_len < cur_min) {
+			cur_min = hole_len;
+			pos_flag = 1;
+		}
+
+		while (p -> nxt != NULL) {
+			hole_len = p -> nxt -> beg - p -> end - 1;
+			if (size <= hole_len && hole_len < cur_min) {
+				cur_min = hole_len;
+				pos_flag = 2;
+				pos = p;
+			}
+			p = p -> nxt;
+		}
+
+		hole_len = memory_limit - p -> end - 1;
+		if (size <= hole_len && hole_len < cur_min) {
+			cur_min = hole_len;
+			pos_flag = 3;
+		}
+		
+		// No enough spaces
+		if (pos_flag == 0) {
+			fprintf(stderr, "[Err] No enough spaces!\n");
+			return 1;
+		}
+		
+		if (pos_flag == 1) {
+			mem_node *tmp = head;
+			head = (mem_node *) malloc (sizeof(mem_node));
+			head -> bel = (char *) malloc (sizeof(char) * (name_len + 1));
+			strcpy(head -> bel, process_name);
+			head -> beg = 0;
+			head -> end = 0 + size - 1;
+			head -> nxt = tmp;
+			return 0;
+		}
+
+		if (pos_flag == 2) {
+			p = pos;
+			mem_node *tmp = p -> nxt;
+			p -> nxt = (mem_node *) malloc (sizeof(mem_node));
+			p -> nxt -> bel = (char *) malloc (sizeof(char) * (name_len + 1));
+			strcpy(p -> nxt -> bel, process_name);
+			p -> nxt -> beg = p -> end + 1;
+			p -> nxt -> end = p -> nxt -> beg + size - 1;
+			p -> nxt -> nxt = tmp;
+			return 0;
+		}
+
+		if (pos_flag == 3) {
+			p -> nxt = (mem_node *) malloc (sizeof(mem_node));
+			p -> nxt -> bel = (char *) malloc (sizeof(char) * (name_len + 1));
+			strcpy(p -> nxt -> bel, process_name);
+			p -> nxt -> beg = p -> end + 1;
+			p -> nxt -> end = p -> nxt -> beg + size - 1;
+			p -> nxt -> nxt = NULL;
+			return 0;
+		}
+	}
+	
+	// Worst-fit
+	if (type == 'W') {
+		mem_node *p = head;
+		int hole_len;
+		
+		// position
+		int cur_max = -2e9;		
+		int pos_flag = 0;
+		mem_node *pos;
+		
+		hole_len = p -> beg - 0;
+		if (size <= hole_len && hole_len > cur_max) {
+			cur_max = hole_len;
+			pos_flag = 1;
+		}
+
+		while (p -> nxt != NULL) {
+			hole_len = p -> nxt -> beg - p -> end - 1;
+			if (size <= hole_len && hole_len > cur_max) {
+				cur_max = hole_len;
+				pos_flag = 2;
+				pos = p;
+			}
+			p = p -> nxt;
+		}
+
+		hole_len = memory_limit - p -> end - 1;
+		if (size <= hole_len && hole_len > cur_max) {
+			cur_max = hole_len;
+			pos_flag = 3;
+		}
+		
+		// No enough spaces
+		if (pos_flag == 0) {
+			fprintf(stderr, "[Err] No enough spaces!\n");
+			return 1;
+		}
+		
+		if (pos_flag == 1) {
+			mem_node *tmp = head;
+			head = (mem_node *) malloc (sizeof(mem_node));
+			head -> bel = (char *) malloc (sizeof(char) * (name_len + 1));
+			strcpy(head -> bel, process_name);
+			head -> beg = 0;
+			head -> end = 0 + size - 1;
+			head -> nxt = tmp;
+			return 0;
+		}
+
+		if (pos_flag == 2) {
+			p = pos;
+			mem_node *tmp = p -> nxt;
+			p -> nxt = (mem_node *) malloc (sizeof(mem_node));
+			p -> nxt -> bel = (char *) malloc (sizeof(char) * (name_len + 1));
+			strcpy(p -> nxt -> bel, process_name);
+			p -> nxt -> beg = p -> end + 1;
+			p -> nxt -> end = p -> nxt -> beg + size - 1;
+			p -> nxt -> nxt = tmp;
+			return 0;
+		}
+
+		if (pos_flag == 3) {
+			p -> nxt = (mem_node *) malloc (sizeof(mem_node));
+			p -> nxt -> bel = (char *) malloc (sizeof(char) * (name_len + 1));
+			strcpy(p -> nxt -> bel, process_name);
+			p -> nxt -> beg = p -> end + 1;
+			p -> nxt -> end = p -> nxt -> beg + size - 1;
+			p -> nxt -> nxt = NULL;
+			return 0;
+		}
+	}
+	
+	fprintf(stderr, "[Err] Argument Error!\n");
+	return 1;
+}
+
+
+// Release the resources allocated to process [process_name].
+// If success, return 0; or return 1 with the error message printed in the screen.
+int release(char *process_name) {
+	if (head == NULL) {
+		fprintf(stderr, "[Err] No such process!\n");
+		return 1;
+	}
+	if (strcmp(head -> bel, process_name) == 0) {
+		mem_node *tmp = head;
+		head = head -> nxt;
+		free(tmp -> bel);
+		free(tmp);
+		return 0;
+	}	
+
+	mem_node *p = head;
+	while (p -> nxt != NULL) {
+		if (strcmp(p -> nxt -> bel, process_name) == 0) {
+			mem_node *tmp = p -> nxt;
+			p -> nxt = p -> nxt -> nxt;
+			free(tmp -> bel);
+			free(tmp);
+			return 0;
+		}
+		p = p -> nxt;
+	}
+
+	fprintf(stderr, "[Err] No such process!\n");
+	return 1;
+}
+
+
+// Compact the holes.
+void compact() {
+	int cur = 0;
+	mem_node *p = head;
+	while (p != NULL) {
+		int size = p -> end - p -> beg + 1;
+		p -> beg = cur;
+		p -> end = cur + size - 1;
+		cur += size;		
+		p = p -> nxt;
+	}
+	return ;
+}
+
+
+// Display the statistics.
+void display() {
+	if (head == NULL) {
+		fprintf(stdout, "Address [0 : %d] Unused\n", memory_limit - 1);
+		return ;
+	} else if (head -> beg != 0) {
+		fprintf(stdout, "Address [0 : %d] Unused\n", head -> beg - 1);
+	}
+	
+	mem_node *p = head;
+	int hole_len;
+
+	while (p -> nxt != NULL) {
+		fprintf(stdout, "Address [%d : %d] Process %s\n", p -> beg, p -> end, p -> bel);
+		hole_len = p -> nxt -> beg - p -> end - 1;
+		if (hole_len > 0)
+			fprintf(stdout, "Address [%d : %d] Unused\n", p -> end + 1, p -> nxt -> beg - 1);
+		p = p -> nxt;
+	}
+	
+	fprintf(stdout, "Address [%d : %d] Process %s\n", p -> beg, p -> end, p -> bel);
+	hole_len = memory_limit - p -> end - 1;
+	if (hole_len > 0)
+		fprintf(stdout, "Address [%d : %d] Unused\n", p -> end + 1, memory_limit - 1);
+}
+
+
+// Standardlize input.
+void standardlize_input(char *op) {
+	char tmp[LINE_MAX];
+	int no_need = 1, tmpn = 0;
+	
+	for (int i = 0; op[i]; ++ i) {
+		if (op[i] == ' ' || op[i] == '\t' || op[i] == '\n') {
+			if (no_need == 0) {
+				no_need = 1;
+				tmp[tmpn ++] = ' ';
+			}
+		} else {
+			tmp[tmpn ++] = op[i];
+			no_need = 0;
+		}
+	}
+
+	if (tmpn > 0 && tmp[tmpn - 1] == ' ') tmpn --;
+	
+	for (int i = 0; i < tmpn; ++ i) op[i] = tmp[i];
+	op[tmpn] = 0;
+}
+
+
+int main(int argc, char *argv[]) {
+	if (argc != 2) {
+		fprintf(stderr, "[Err] Arguments Error!\n");
+		exit(1);
+	}
+
+	memory_limit = atoi(argv[1]);
+
+	char op[LINE_MAX], oper[LINE_MAX];
+	char process_name[LINE_MAX];
+	while(1) {
+		for (int i = 0; i < LINE_MAX; ++ i) {
+			op[i] = 0; oper[i] = 0;
+			process_name[i] = 0;
+		}
+
+		fprintf(stdout, "allocator> ");
+		fgets(op, LINE_MAX, stdin);
+		
+		standardlize_input(op);
+
+		if (strcmp(op, "EXIT") == 0) break;	
+	
+		if (strcmp(op, "C") == 0) {
+			compact();
+			continue;
+		}
+
+		if (strcmp(op, "STAT") == 0) {
+			display();		
+			continue;
+		}
+
+		// parse the inputs.
+		int pos = 0;
+		for (; op[pos]; ++ pos)
+			if(op[pos] == ' ') break;
+
+		for (int i = 0; i < pos; ++ i)
+			oper[i] = op[i];
+		oper[pos] = 0;
+		
+		if (strcmp(oper, "RQ") == 0) {
+			if (op[pos] == 0) {
+				fprintf(stderr, "[Err] Invalid input!\n");
+				continue;
+			}
+			
+			int i;
+			for (i = pos + 1; op[i]; ++ i) {
+				if (op[i] == ' ') break;
+				process_name[i - pos - 1] = op[i];
+			}
+			
+			if (op[i] == 0) {
+				fprintf(stderr, "[Err] Invalid input!\n");
+				continue;
+			}
+			
+			int invalid_input = 0;
+			int size = 0;
+			pos = i;
+			for (i = pos + 1; op[i]; ++ i) {
+				if(op[i] == ' ') break;
+				if(op[i] < '0' || op[i] > '9') {
+					invalid_input = 1;
+					break;
+				}
+				size = size * 10 + op[i] - '0';
+			}
+			
+			if (invalid_input || op[i] == 0) {
+				fprintf(stderr, "[Err] Invalid input!\n");
+				continue;
+			}
+
+			if ((i - pos - 1) >= 10) {
+				fprintf(stderr, "[Err] Size too large!\n");
+				continue;
+			}
+
+			pos = i;
+			for (i = pos + 1; op[i]; ++ i) {
+				if (op[i] == ' ') {
+					invalid_input = 1;
+					break;
+				}
+			}
+			
+			if (invalid_input || (i - pos - 1) != 1) {
+				fprintf(stderr, "[Err] Invalid input!\n");
+				continue;
+			}
+
+			request(process_name, size, op[pos + 1]);
+		} else if (strcmp(oper, "RL") == 0) {
+			if (op[pos] == 0) {
+				fprintf(stderr, "[Err] Invalid input!\n");
+				continue;
+			}
+
+			int invalid_input = 0;
+			for (int i = pos + 1; op[i]; ++ i) {
+				if (op[i] == ' ') {
+					invalid_input = 1;
+					break;
+				}
+				process_name[i - pos - 1] = op[i];
+			}
+			
+			if (invalid_input) fprintf(stderr, "[Err] Invalid input!\n");
+			else release(process_name);
+		} else
+			fprintf(stderr, "[Err] Invalid input!\n");
+	}
+
+	return 0;
+}
+\end{lstlisting}
+
+\subsection{Testing}
+I write a \texttt{Makefile} file to help testing the program. We only need to enter the following instructions in the terminal and we can begin testing, and the argument of the \texttt{allocator} program stands for the memory limit.
+\begin{lstlisting}
+make
+./allocator 1048576
+RQ P1 10000 B
+RQ P2 20000 B
+RQ P3 30000 B
+RQ P4 40000 B
+STAT
+RL P2
+RQ P5 20001 F
+STAT
+RQ P6 10000 B
+RQ P7 10000 W
+RQ P8 10000 F
+STAT
+RL P6
+RL P3
+RL P5
+STAT
+C
+STAT
+EXIT
+\end{lstlisting}
+
+Here is the execution result of the memory allocation program (Fig. \ref{fig1}).
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=6.5in]{pic.png}\\
+  \caption{The execution result of the memory allocation program}\label{fig1}
+\end{figure}
+
+
+\section{Personal Thoughts}
+The project helps me understand the contiguous memory allocation algorithm better, including the first-fit algorithm, the best-fit algorithm and the worst-fit algorithm. The project also improves my understanding of memory compaction. The project trains our coding skills since we also need to implement parsing process and the shell-like windows except the algorithm. The implementation of the algorithms is quite simple but it needs patience. I enjoy the process of writing this program.
+
+By the way, you can \underline{find all the source codes in the ``src'' folder}. You can also refer to \href{https://github.com/Galaxies99/CS307-Projects}{my github} to see my codes of this project, and they are in the \texttt{Project7} folder.
+%========================================================================
+\end{document}

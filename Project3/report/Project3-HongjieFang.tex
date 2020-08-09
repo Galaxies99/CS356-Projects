@@ -1,0 +1,534 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage{ctex}
+\usepackage{amsmath,amscd,amsbsy,amssymb,latexsym,url,bm,amsthm}
+\usepackage{epsfig,graphicx,subfigure}
+\usepackage{enumitem,balance}
+\usepackage{enumerate}
+\usepackage{wrapfig}
+\usepackage{listings}
+\usepackage{mathrsfs,euscript}
+\usepackage[usenames]{xcolor}
+\usepackage{hyperref}
+\usepackage[vlined,ruled,linesnumbered]{algorithm2e}
+\hypersetup{colorlinks=true,linkcolor=black}
+\lstset{
+    breaklines,
+    basicstyle          =   \ttfamily,          % 基本代码风格
+    commentstyle        =   \rmfamily\itshape,  % 注释的风格，斜体
+    stringstyle         =   \ttfamily,  % 字符串风格
+    flexiblecolumns,                % 别问为什么，加上这个
+    numbers             =   left,   % 行号的位置在左边
+    showspaces          =   false,  % 是否显示空格，显示了有点乱，所以不现实了
+    numberstyle         =   \zihao{-5}\ttfamily,    % 行号的样式，小五号，tt 等宽字体
+    showstringspaces    =   false,
+    captionpos          =   t,      % 这段代码的名字所呈现的位置，t指的是top 上面
+    frame               =   lrtb,   % 显示边框
+    tabsize             =   2,
+}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{exercise}{Exercise}
+\newtheorem*{solution}{Solution}
+\newtheorem*{example}{Example}
+\newtheorem{definition}{Definition}
+\theoremstyle{definition}
+
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+
+\newcommand{\postscript}[2]
+ {\setlength{\epsfxsize}{#2\hsize}
+  \centerline{\epsfbox{#1}}}
+
+\renewcommand{\baselinestretch}{1.0}
+
+\setlength{\oddsidemargin}{-0.365in}
+\setlength{\evensidemargin}{-0.365in}
+\setlength{\topmargin}{-0.3in}
+\setlength{\headheight}{0in}
+\setlength{\headsep}{0in}
+\setlength{\textheight}{10.1in}
+\setlength{\textwidth}{7in}
+\makeatletter \renewenvironment{proof}[1][Proof] {\par\pushQED{\qed}\normalfont\topsep6\p@\@plus6\p@\relax\trivlist\item[\hskip\labelsep\bfseries#1\@addpunct{.}]\ignorespaces}{\popQED\endtrivlist\@endpefalse} \makeatother
+\makeatletter
+\renewenvironment{solution}[1][Solution] {\par\pushQED{\qed}\normalfont\topsep6\p@\@plus6\p@\relax\trivlist\item[\hskip\labelsep\bfseries#1\@addpunct{.}]\ignorespaces}{\popQED\endtrivlist\@endpefalse} \makeatother
+
+\begin{document}
+\noindent
+
+%========================================================================
+\noindent\framebox[1.05\linewidth]{\shortstack[c]{
+\Large{\textbf{Project 3: Multithreaded Sorting Application}} \\ \Large{\textbf{and Fork-Join Sorting Application}}\vspace{1mm}\\
+CS307-Operating System (D), CS356-Operating System Course Design, Chentao Wu, Spring 2020.}}
+\begin{center}
+\footnotesize{\color{blue}Name: 方泓杰 (Hongjie Fang)  \quad Student ID: 518030910150 \quad Email: galaxies@sjtu.edu.cn}
+\end{center}
+
+\section{Multithreaded Sorting Application}
+Write a multithreaded sorting program that works as follows: A list of integers is divided into two smaller lists of equal size. Two separate threads (which we will term \textbf{\textit{soring threads}}) sort each sublist using a sorting algorithm of your choice. The two sublists are merged by a third thread - a \textbf{\textit{merging thread}} - which merges the two sublists into a single sorted list.
+
+Because global data are shared across all threads, perhaps the easiest way to set up the data is to create a global array. Each sorting thread will work on one half of this array. A second global array of the same size as the unsorted integer array will also be established. The merging thread will then merge the two sublists into this second array. Graphically, this program is structured as follows (Fig. \ref{fig1}).
+
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=4in]{fig1.png}\\
+  \caption{Multithreaded sorting}\label{fig1}
+\end{figure}
+
+
+This programming project will require passing parameters to each of the sorting thread. In particular, it will be necessary to identify the starting index from which each thread is to begin sorting. Refer to the instructions in the last project for details on passing parameters to a thread.
+
+The parent thread will output the sorted array once all sorting threads have exited.
+
+\begin{solution} Here is my methods to implement the multithreaded sorting program (\texttt{multithreaded-sort.c}).
+\begin{itemize}
+  \item There are two global arrays \texttt{arr} and \texttt{res}. \texttt{arr} stores the initial array and the result of sorting threads; and \texttt{res} stores the result of merging thread, which is also the final result array.
+  \item Suppose $n$ is the length of the array. We pass the parameters \texttt{(begin, end)} to the sorting threads, which indicates that this thread is used to sort the sub-array \texttt{arr[begin ... end]}.
+      \begin{itemize}
+      \item We pass the parameters \texttt{(0, n/2)} to sorting thread 0;
+      \item We pass the parameters \texttt{(n/2 + 1, n - 1)} to sorting thread 1.
+      \end{itemize}
+  \item In each sorting thread, we use the Quicksort the sort the sub-array. The Quicksort algorithm is provided in the \texttt{<stdlib.h>} library, so we can call it directly using \texttt{qsort(...)} instruction.
+  \item We pass the parameters \texttt{(begin, mid, end)} to the merging thread, which indicates the two sorted subarrays are \texttt{arr[begin ... mid]} and \texttt{array[mid + 1 ... end]}. Then we use the merge algorithm in the Mergesort to merge two sorted array into one sorted array \texttt{res}.
+\end{itemize}
+
+Here is the specific implementation of multithreaded sort (\texttt{multithreaded-sort.c}).
+
+\begin{lstlisting}[language=c]
+// Note: remember to add '-g -lpthread' when compiling.
+# include <stdio.h>
+# include <pthread.h>
+# include <stdlib.h>
+
+// the size of the array.
+int n;
+// original array.
+int *arr;
+// result array.
+int *res;
+
+struct parameters {
+	// the sorting thread will sort arr[begin ... end]
+	int begin, end;
+};
+
+struct merge_parameters {
+	// the merging thread will merge arr[begin ... mid] and arr[mid + 1, end]
+	int begin, mid, end;
+};
+
+int qsort_cmp(const void *a, const void *b) {
+	return * (int *) a - * (int *) b;
+}
+
+void* sorting_routine(void *arg) {
+	struct parameters *data = (struct parameters *) arg;
+	
+	if (data -> end - data -> begin < 0) return NULL;
+
+	// Quick sort provided by <stdlib.h>.
+	qsort(arr + data -> begin, data -> end - data -> begin + 1, sizeof(int), qsort_cmp);
+	
+	// Return.
+	return NULL;
+}
+
+void* merging_routine(void *arg) {
+	struct merge_parameters *data = (struct merge_parameters *) arg;
+	// Merge two sorted arrays.
+	// |-- pos of result
+	int res_pos = data -> begin;
+	// |-- pos of two arrays.
+	int pos0 = data -> begin, pos1 = data -> mid + 1;
+
+	// |-- comparing & merging.
+	while (pos0 <= data -> mid && pos1 <= data -> end) {
+		if (arr[pos0] <= arr[pos1]) res[res_pos ++] = arr[pos0 ++];
+		else res[res_pos ++] = arr[pos1 ++];
+	}
+	// |-- the rest of the elements.
+	while (pos0 <= data -> mid)
+		res[res_pos ++] = arr[pos0 ++];
+	while (pos1 <= data -> end)
+		res[res_pos ++] = arr[pos1 ++];
+	
+	// Check the result.
+	if (res_pos != data -> end + 1) {
+		printf("Error: unexpected error occurs when merging.\n");
+		exit(1);	
+	}
+	
+	// Return.
+	return NULL;
+}
+	
+int main(void) {
+	int err;
+	
+	// Input
+	printf("Please input the length of the array (0 <= n <= 1000000): ");
+	scanf("%d", &n);
+
+	if(n < 0 || n > 1000000) {
+		printf("Error: n should be in range [0, 1000000]!\n");
+		exit(1);
+	}
+
+	// Allocate spaces for arrays.
+	arr = (int *) malloc (n * sizeof(int));
+	res = (int *) malloc (n * sizeof(int));
+
+	// Input the elements or Generate the elements.
+	char opt[5];
+	printf("Do you want to generate the random elements automatically (y/n): ");
+	scanf("%s", opt);
+	if(opt[0] == 'y') {
+		for (int i = 0; i < n; ++ i)
+			arr[i] = rand() % 1000;
+		printf("The original array: \n");
+		for (int i = 0; i < n; ++ i)
+			printf("%d ", arr[i]);
+		printf("\n");
+	} else if (opt[0] == 'n') {
+		printf("Please input the array elements: \n");
+		for (int i = 0; i < n; ++ i)
+			scanf("%d", &arr[i]);
+	} else {
+		printf("Error: invalid input!\n");
+		exit(1);
+	}
+
+	// Prepare parameters for sorting threads.
+	struct parameters param[2];
+	// |-- thread 0 parameters
+	param[0].begin = 0;
+	param[0].end = n / 2;
+	// |-- thread 1 parameters
+	param[1].begin = n / 2 + 1;
+	param[1].end = n - 1;
+	
+	// Create sorting threads & passing parameters.
+	pthread_t sorting_thread[2];
+	for (int i = 0; i < 2; ++ i) {
+  	err = pthread_create(&sorting_thread[i], NULL, sorting_routine, &param[i]);
+		if (err) {
+			printf("Error: create thread failed!\n");
+			exit(1);
+		}
+	}
+
+	// Sorting threads end.
+	void *output;
+	for (int i = 0; i < 2; ++ i) {
+		err = pthread_join(sorting_thread[i], &output);
+		if (err) {
+			printf("Error: thread join failed!\n");
+			exit(1);
+		}
+	}
+
+	// Prepare parameters for merging thread.
+	struct merge_parameters m_param;
+	m_param.begin = 0;
+	m_param.mid = n / 2;
+	m_param.end = n - 1;
+
+	// Create merging thread & passing parameters.
+	pthread_t merging_thread;
+	err = pthread_create(&merging_thread, NULL, merging_routine, &m_param);
+	if (err) {
+		printf("Error: create thread failed!\n");
+		exit(1);
+	}
+
+	// Merging thread end.
+	err = pthread_join(merging_thread, &output);
+	if (err) {
+		printf("Error: thread join failed!\n");
+		exit(1);
+	}
+
+	// Print the result	(Output).
+	printf("The array after sorting: \n");
+	for (int i = 0; i < n; ++ i)
+		printf("%d ", res[i]);
+	printf("\n");
+	
+	// Release the spaces.
+	free(arr);
+	free(res);
+	
+	return 0;
+}
+\end{lstlisting}
+
+We can test the multithreaded program by entering the following instructions. Rememeber to add \texttt{-g -lpthread} because we need to use \texttt{pthread} API.
+\begin{lstlisting}
+gcc multithreaded-sort.c -o ./sort -g -lpthread
+./sort
+\end{lstlisting}
+
+Thus, you can enter the array or use the random array generated automatically to test the multithreaded sorting program.
+
+Here are some testing examples (Fig. \ref{fig2}).
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=6in]{fig2.png}\\
+  \caption{Testing examples of the multithreaded sorting program}\label{fig2}
+\end{figure}
+
+\end{solution}
+
+\section{Fork-Join Sorting Application}
+Implement the preceding project (Multithreaded Sorting Application) using Java's fork-join parallelism API. This project will be developed in two different versions. Each version will implement a different divide-and-conquer sorting algorithm: Quicksort, Mergesort.
+
+The Quicksort implementation will use the Quicksort algorithm for dividing the list of elements to be sorted into a \textit{left half} and a \textit{right half} based on the position of the \texttt{pivot} value. The Mergesort algorithm will divide the list into two evenly sized halves. For both the Quicksort and Mergesort algorithms, when the list to be sorted falls within some threshold value (for example, the list is size 100 or fewer), directly apply a simple algorithms such as the Selection or Insertion sort. Most data structures texts describe these two well-know, divide-and-conquer sorting algorithms.
+
+The class \texttt{SumTask} shwon in Section 4.5.2.1 extends \texttt{RecursiveTask}, which is a result-bearing \texttt{ForkJoinTask}. As this assignment will involve sorting the array that is passed to the task, but not returning any values, you will instead create a class that extends \texttt{RecursiveAction}, a non result-bearing \texttt{ForkJoinTask}.
+
+The objects passed to each sorting algorithms are required to implement Java's \texttt{Comparable} interface, and this will need to be reflected in the class definition for each sorting algorithm. The source code download for this text includes Java code that provides the foundation for beginning this project.
+\begin{solution}
+Here is my methods to implement the Fork-Join sorting program (\texttt{Mergesort.java} and \texttt{Quicksort.java}).
+
+\begin{itemize}
+  \item We \underline{use the \texttt{RecursiveAction} in the \texttt{ForkJoinTask}} to implement the sorting process;
+  \item We implement the sorting process in \texttt{compute()} function. We do not discuss the details of the sort algorithms here and you can refer to the source codes yourself.
+  \item We use the java class \texttt{Integer} as the object type. Our object is required to implement \texttt{Comparable} interface because we \underline{use the \texttt{compareTo()} function in the \texttt{Comparable} interface}, instead of the usual comparators \texttt{<, <=, >, >=, ...}.
+\end{itemize}
+
+Here is the specific implementation of the fork-join Mergesort version (\texttt{Mergesort.java}).
+\begin{lstlisting}[language=java]
+import java.util.Arrays;
+import java.util.Scanner;
+import java.util.concurrent.*;
+
+public class Mergesort extends RecursiveAction {
+	static final int THRESHOLD = 10;
+
+	private int begin;
+	private int end;
+	private Integer[] array;
+
+	public Mergesort(int begin, int end, Integer[] array) {
+		this.begin = begin;
+		this.end = end;
+		this.array = array;
+	}
+
+	protected void compute() {
+		if (end - begin + 1 <= THRESHOLD) {
+			// Sort directly using Bubble Sort
+			for (int i = end; i >= begin + 1; -- i)
+				for (int j = begin; j < i; ++ j)
+					if (array[j].compareTo(array[j + 1]) > 0) {
+						Integer temp = array[j];
+						array[j] = array[j + 1];
+						array[j + 1] = temp;
+					}
+		} else {
+			// divide stage
+			int mid = begin + (end - begin) / 2;
+
+			Mergesort leftTask = new Mergesort(begin, mid, array);
+			Mergesort rightTask = new Mergesort(mid + 1, end, array);
+
+			leftTask.fork();
+			rightTask.fork();
+
+			leftTask.join();
+			rightTask.join();
+
+			Integer[] temp = new Integer [end - begin + 1];
+			
+			int pos1 = begin, pos2 = mid + 1, k = 0;
+			while (pos1 <= mid && pos2 <= end) {
+				if (array[pos1].compareTo(array[pos2]) <= 0) temp[k ++] = array[pos1 ++];
+				else temp[k ++] = array[pos2 ++];
+			}
+			while (pos1 <= mid) temp[k ++] = array[pos1 ++];
+			while (pos2 <= end) temp[k ++] = array[pos2 ++];
+
+			for (int i = 0; i < k; ++ i)
+				array[i + begin] = temp[i];
+		}
+	}
+
+	public static void main(String[] args) {
+		ForkJoinPool pool = new ForkJoinPool();
+		Scanner sc = new Scanner(System.in);
+
+		System.out.print("Please input the length of the array (0 <= n <= 1000000): ");
+		int n = sc.nextInt();
+		if (n < 0 || n > 1000000) {
+			System.out.println("Error: n should be in range [0, 1000000]!");
+			System.exit(1);
+		}
+
+		Integer[] array = new Integer[n];
+
+		System.out.print("Do you want to generate the random elements automatically (y/n): ");
+		char opt = sc.next().charAt(0);
+		if (opt == 'y') {
+			// create SIZE random integers between 0 and 999
+			java.util.Random rand = new java.util.Random();
+			for (int i = 0; i < n; ++ i)
+				array[i] = rand.nextInt(1000);
+			System.out.print("The original array: ");
+			System.out.println(Arrays.toString(array));
+		} else if (opt == 'n') {
+			System.out.println("Please input the array elements: ");
+			for (int i = 0; i < n; ++ i)
+				array[i] = sc.nextInt();
+		} else {
+			System.out.println("Error: invalid input!");
+			System.exit(1);
+		}
+		
+		// use fork-join parallelism to sum the array
+		Mergesort task = new Mergesort(0, n - 1, array);
+
+		pool.invoke(task);
+
+		System.out.print("The array after sorting: ");
+		System.out.println(Arrays.toString(array));
+	}
+}
+\end{lstlisting}
+
+We can test the fork-join Mergesort program by entering the following instructions.
+\begin{lstlisting}
+javac Mergesort.java
+java Mergesort
+\end{lstlisting}
+
+Thus, you can enter the array or use the random array generated automatically to test the fork-join Mergesort program.
+
+Here are some testing examples (Fig. \ref{fig3}).
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=6in]{fig3.png}\\
+  \caption{Testing examples of the fork-join Mergesort program}\label{fig3}
+\end{figure}
+
+Here is the specific implementation of the fork-join Quicksort version (\texttt{Quicksort.java}).
+\begin{lstlisting}[language=java]
+import java.util.Arrays;
+import java.util.Scanner;
+import java.util.concurrent.*;
+
+public class Quicksort extends RecursiveAction {
+	static final int THRESHOLD = 10;
+
+	private int begin;
+	private int end;
+	private Integer[] array;
+
+	public Quicksort(int begin, int end, Integer[] array) {
+		this.begin = begin;
+		this.end = end;
+		this.array = array;
+	}
+
+	protected void compute() {
+		if (end - begin + 1 <= THRESHOLD) {
+			// Sort directly using Bubble Sort
+			for (int i = end; i >= begin + 1; -- i)
+				for (int j = begin; j < i; ++ j)
+					if (array[j].compareTo(array[j + 1]) > 0) {
+						Integer temp = array[j];
+						array[j] = array[j + 1];
+						array[j + 1] = temp;
+					}
+		} else {
+			// divide stage
+			Integer pivot = array[begin];
+			int low = begin, high = end;
+			while (low < high) {
+				while (low < high && array[high].compareTo(pivot) >= 0) -- high;
+				if (low < high) array[low ++] = array[high];
+				while (low < high && array[low].compareTo(pivot) <= 0) ++ low;
+				if (low < high) array[high --] = array[low];
+			}
+			array[low] = pivot;
+
+			Quicksort leftTask = new Quicksort(begin, low - 1, array);
+			Quicksort rightTask = new Quicksort(low + 1, end, array);
+
+			leftTask.fork();
+			rightTask.fork();
+
+			leftTask.join();
+			rightTask.join();
+		}
+	}
+
+	public static void main(String[] args) {
+		ForkJoinPool pool = new ForkJoinPool();
+		Scanner sc = new Scanner(System.in);
+
+		System.out.print("Please input the length of the array (0 <= n <= 1000000): ");
+		int n = sc.nextInt();
+		if (n < 0 || n > 1000000) {
+			System.out.println("Error: n should be in range [0, 1000000]!");
+			System.exit(1);
+		}
+
+		Integer[] array = new Integer[n];
+
+		System.out.print("Do you want to generate the random elements automatically (y/n): ");
+		char opt = sc.next().charAt(0);
+		if (opt == 'y') {
+			// create SIZE random integers between 0 and 999
+			java.util.Random rand = new java.util.Random();
+			for (int i = 0; i < n; ++ i)
+				array[i] = rand.nextInt(1000);
+			System.out.print("The original array: ");
+			System.out.println(Arrays.toString(array));
+		} else if (opt == 'n') {
+			System.out.println("Please input the array elements: ");
+			for (int i = 0; i < n; ++ i)
+				array[i] = sc.nextInt();
+		} else {
+			System.out.println("Error: invalid input!");
+			System.exit(1);
+		}
+		
+		// use fork-join parallelism to sum the array
+		Quicksort task = new Quicksort(0, n - 1, array);
+
+		pool.invoke(task);
+
+		System.out.print("The array after sorting: ");
+		System.out.println(Arrays.toString(array));
+	}
+}
+\end{lstlisting}
+
+We can test the fork-join Quicksort program by entering the following instructions.
+\begin{lstlisting}
+javac Quicksort.java
+java Quicksort
+\end{lstlisting}
+
+Thus, you can enter the array or use the random array generated automatically to test the fork-join Quicksort program.
+\clearpage
+Here are some testing examples (Fig. \ref{fig4}).
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=6in]{fig4.png}\\
+  \caption{Testing examples of the fork-join Quicksort program}\label{fig4}
+\end{figure}
+
+\end{solution}
+
+\section{Personal Thoughts}
+During the project, I've gained basic experiences about using the threads and writing a multithreaded program in both C and Java. And I am familiar with the \texttt{pthread} API in C and the \texttt{ForkJoinTask} in Java, which is helpful in multithreaded programming. What's more, I understand the multithreaded programming better after some tries.
+
+By the way, you can \underline{find all the source codes in the ``src'' folder}. You can also refer to \href{https://github.com/Galaxies99/CS307-Projects}{my github} to see my codes of this project, and they are in the \texttt{Project3} folder.
+%========================================================================
+\end{document}

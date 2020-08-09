@@ -1,0 +1,528 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage{ctex}
+\usepackage{amsmath,amscd,amsbsy,amssymb,latexsym,url,bm,amsthm}
+\usepackage{epsfig,graphicx,subfigure}
+\usepackage{enumitem,balance}
+\usepackage{enumerate}
+\usepackage{wrapfig}
+\usepackage{listings}
+\usepackage{mathrsfs,euscript}
+\usepackage[usenames]{xcolor}
+\usepackage{hyperref}
+\usepackage[vlined,ruled,linesnumbered]{algorithm2e}
+\hypersetup{colorlinks=true,linkcolor=black}
+\lstset{
+    breaklines,
+    basicstyle          =   \ttfamily,          % 基本代码风格
+    commentstyle        =   \rmfamily\itshape,  % 注释的风格，斜体
+    stringstyle         =   \ttfamily,  % 字符串风格
+    flexiblecolumns,                % 别问为什么，加上这个
+    numbers             =   left,   % 行号的位置在左边
+    showspaces          =   false,  % 是否显示空格，显示了有点乱，所以不现实了
+    numberstyle         =   \zihao{-5}\ttfamily,    % 行号的样式，小五号，tt 等宽字体
+    showstringspaces    =   false,
+    captionpos          =   t,      % 这段代码的名字所呈现的位置，t指的是top 上面
+    frame               =   lrtb,   % 显示边框
+}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{exercise}{Exercise}
+\newtheorem*{solution}{Solution}
+\newtheorem*{example}{Example}
+\newtheorem{definition}{Definition}
+\theoremstyle{definition}
+
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+
+\newcommand{\postscript}[2]
+ {\setlength{\epsfxsize}{#2\hsize}
+  \centerline{\epsfbox{#1}}}
+
+\renewcommand{\baselinestretch}{1.0}
+
+\setlength{\oddsidemargin}{-0.365in}
+\setlength{\evensidemargin}{-0.365in}
+\setlength{\topmargin}{-0.3in}
+\setlength{\headheight}{0in}
+\setlength{\headsep}{0in}
+\setlength{\textheight}{10.1in}
+\setlength{\textwidth}{7in}
+\makeatletter \renewenvironment{proof}[1][Proof] {\par\pushQED{\qed}\normalfont\topsep6\p@\@plus6\p@\relax\trivlist\item[\hskip\labelsep\bfseries#1\@addpunct{.}]\ignorespaces}{\popQED\endtrivlist\@endpefalse} \makeatother
+\makeatletter
+\renewenvironment{solution}[1][Solution] {\par\pushQED{\qed}\normalfont\topsep6\p@\@plus6\p@\relax\trivlist\item[\hskip\labelsep\bfseries#1\@addpunct{.}]\ignorespaces}{\popQED\endtrivlist\@endpefalse} \makeatother
+
+\begin{document}
+\noindent
+
+%========================================================================
+\noindent\framebox[1.05\linewidth]{\shortstack[c]{
+\Large{\textbf{Project 1: Introduction to Linux Kernel Modules}}\vspace{1mm}\\
+CS307-Operating System (D), CS356-Operating System Course Design, Chentao Wu, Spring 2020.}}
+\begin{center}
+\footnotesize{\color{blue}Name: 方泓杰 (Hongjie Fang)  \quad Student ID: 518030910150 \quad Email: galaxies@sjtu.edu.cn}
+\end{center}
+\section{Compiling Linux Kernel}
+In this section, we will upgrade the Linux Kernel, and we will compile Linux Kernel during the process. Here are more detailed information.
+\subsection{Preparation}
+We download and install the \underline{VMWare Workstation Pro 15.5.0} software, which is distinguished for its virtual machine technology. Then we download the image file of the Ubuntu operating system \underline{ubuntu-18.04.4-desktop-amd64.iso}, and install it as a virtual machine in VMWare Workstation.
+
+After installation, we open the terminal of the virtual machine and input the following instruction, and we can see the current Linux Kernel version of the Ubuntu system.
+
+\begin{lstlisting}
+uname -a
+\end{lstlisting}
+
+The current Linux Kernel version of my Ubuntu is \underline{5.3.0-40-generic} (Fig. \ref{fig1}).
+
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=7in]{pic1.png}\\
+  \caption{The current Linux Kernel version}\label{fig1}
+\end{figure}
+
+Then we visit \underline{www.kernel.org} to download the high-version kernel source. I choose the latest stable kernel version \underline{5.5.8} to download (Fig. \ref{fig2}).
+
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=7in]{pic2.png}\\
+  \caption{The latest stable kernel version}\label{fig2}
+\end{figure}
+
+Then we use the following instruction to unzip the Linux Kernel source file to the directory \texttt{/usr/src}, then we can find the corresponding files under that directory (Fig. \ref{fig3}).
+
+\begin{lstlisting}
+tar xvJf linux-5.5.8.tar.xz -C /usr/src
+\end{lstlisting}
+\clearpage
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=7in]{pic3.png}\\
+  \caption{The files after unzipping}\label{fig3}
+\end{figure}
+
+We use the following instructions to install and upgrade necessary programs before compiling.
+
+\begin{lstlisting}
+sudo apt update
+sudo apt upgrade
+sudo apt-get install git fakeroot build-essential ncurses-dev
+sudo apt-get install xz-utils libssl-dev bc flex libelf-dev bison
+\end{lstlisting}
+
+Then, we enter the following instruction to set some configurations of kernel (Fig. \ref{fig4}).
+\begin{lstlisting}
+sudo make menuconfig
+\end{lstlisting}
+
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=7in]{pic4.png}\\
+  \caption{Set configurations of kernel}\label{fig4}
+\end{figure}
+
+The configuration menu is displayed as follows (Fig. \ref{fig5}).
+
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=7in]{pic5.png}\\
+  \caption{The configuration menu}\label{fig5}
+\end{figure}
+
+We will use the default settings so we can exit the menu directly, and the configurations will be saved automatically.
+
+\subsection{Compilation}
+
+We use the following instruction to compile the kernel, where \texttt{-j3} means three threads compile in parallel so the compilation time will be reduced to only about 3 hours.
+\begin{lstlisting}
+sudo make -j3
+\end{lstlisting}
+
+The following figure (Fig. \ref{fig6}) shows the beginning of compilation.
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=7in]{pic6.png}\\
+  \caption{The beginning of compilation}\label{fig6}
+\end{figure}
+
+Three hours later, the compilation process successfully finishes (Fig. \ref{fig7}).
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=7in]{pic7.png}\\
+  \caption{The end of compilation}\label{fig7}
+\end{figure}
+
+\subsection{Installation}
+
+After compilation, we can install the new kernel in our Ubuntu system. First we need to install kernel modules using the following instruction (Fig. \ref{fig8}).
+\begin{lstlisting}
+sudo make modules_install
+\end{lstlisting}
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=7in]{pic8.png}\\
+  \caption{The beginning of kernel modules installation}\label{fig8}
+\end{figure}
+\clearpage
+A few moments later, the modules are successfully installed (Fig. \ref{fig9}).
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=7in]{pic9.png}\\
+  \caption{The end of kernel modules installation}\label{fig9}
+\end{figure}
+
+After that, we can install kernel using the following instruction.
+\begin{lstlisting}
+sudo make install
+\end{lstlisting}
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=7in]{pic10.png}\\
+  \caption{Kernel installation}\label{fig10}
+\end{figure}
+
+Then we can reboot the system using the following instruction.
+
+\begin{lstlisting}
+reboot
+\end{lstlisting}
+
+\subsection{Result}
+
+After system rebooting, the kernel is successfully updated. We can use \texttt{uname} instruction mentioned above to check the new version (Fig. \ref{fig11}).
+
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=7in]{pic11.png}\\
+  \caption{The new Linux Kernel version}\label{fig11}
+\end{figure}
+
+We can use the following instruction to find out all the program installed in the computer, and we can search ``linux'' to find out all the kernel versions.
+
+\begin{lstlisting}
+sudo dpkg --get-selections
+\end{lstlisting}
+
+Then we can use the following instruction to clear the old version kernel (Fig. \ref{fig12}).
+
+\begin{lstlisting}
+sudo apt-get purge linux-image-5.3.0-40-generic
+\end{lstlisting}
+
+\clearpage
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=7in]{pic12.png}\\
+  \caption{Remove the old version kernel}\label{fig12}
+\end{figure}
+
+\section{Designing Kernel Module}
+
+In this section, we will talk about the projects and the assignments in the textbook, and we will provide our solutions to assignments.
+
+\subsection{The Simple Module}
+We are first required to print out the Golden Ratio Prime in the \texttt{simple\_init()} function and print out the greatest common divisor of 3300 and 24 in the \texttt{simple\_exit()} function.
+
+Actually this part is very simple, we only need to call the \texttt{gcd()} function in the \texttt{<linux/gcd.h>} library and use the \texttt{GOLDEN\_RATIO\_PRIME} in the \texttt{<linux/hash.h>} library.
+
+The \texttt{simple.c} program is displayed as follows.
+\begin{lstlisting}[language=c]
+# include <linux/gcd.h>
+# include <linux/hash.h>
+# include <linux/init.h>
+# include <linux/kernel.h>
+# include <linux/module.h>
+
+int simple_init(void) {
+  printk(KERN_INFO "Loading Kernel Module\n");
+  printk(KERN_INFO "The golden ratio prime is: %llu\n", GOLDEN_RATIO_PRIME);
+  return 0;
+}
+
+void simple_exit(void) {
+  printk(KERN_INFO "Removing Kernel Module\n");
+  printk(KERN_INFO "The greatest common divisor of %d and %d is: %lu\n", 3300, 24, gcd(3300, 24));
+}
+
+module_init(simple_init);
+module_exit(simple_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Simple Module");
+MODULE_AUTHOR("Galaxies");
+\end{lstlisting}
+
+The \texttt{Makefile} file is as follows.
+\begin{lstlisting}
+obj-m := simple.o
+
+all:
+	make -C /usr/src/linux-5.5.8/ M=$(shell pwd) modules
+clean:
+	make -C /usr/src/linux-5.5.8/ M=$(shell pwd) clean
+\end{lstlisting}
+
+We can use the following instruction to test the simple module.
+
+\begin{lstlisting}
+sudo make
+sudo dmesg -C
+sudo insmod simple.ko
+sudo dmesg
+sudo rmmod simple
+sudo dmesg
+\end{lstlisting}
+
+The execution results of these instructions are as follows (Fig. \ref{extra-fig}).
+
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=7in]{extra-fig.png}\\
+  \caption{The execution results of these instructions in simple module}\label{extra-fig}
+\end{figure}
+
+We are also required to print out the value of \texttt{HZ} and \texttt{jiffies} in the \texttt{simple\_init()} function, and print out the value of \texttt{jiffies} in the \texttt{simple\_exit()} function. This requirement is basically a simple version of the assignment, which we will discussed in the next sub-section. So we do not discuss further here.
+
+\subsection{The Jiffies Module}
+Design a kernel module that creates a \texttt{/proc} file named \texttt{/proc/jiffies} that reports the current value of \texttt{jiffies} when the \texttt{/proc/jiffies} file is read, such as with the command:
+\begin{lstlisting}
+cat /proc/jiffies
+\end{lstlisting}
+
+Be sure to remove \texttt{/proc/jiffies} when the module is removed.
+\begin{solution}
+The problem is very similar with the \texttt{hello} module example provided in textbook. Therefore we can use the similar method to write this kernel module. Here are some explanations.
+\begin{itemize}
+  \item \texttt{jiffies} is a system variable defined in the \texttt{linux/jiffies.h}, which means the total clock interrupt times since the system started. Therefore, its value is changing all the time, and we have to include the corresponding headfile to use \texttt{jiffies}.
+  \item The data type of \texttt{jiffies} is \texttt{unsigned long volatile} where \texttt{volatile} means it cannot be optimized by compiler, so we need to use \texttt{\%lu} to output its value.
+\end{itemize}
+
+The \texttt{jiffies.c} program is displayed as follows.
+
+\begin{lstlisting}[language=C++]
+# include <linux/init.h>
+# include <linux/kernel.h>
+# include <linux/module.h>
+# include <linux/proc_fs.h>
+# include <asm/uaccess.h>
+# include <linux/uaccess.h>
+# include <linux/jiffies.h>   // jiffies is in this headfile
+
+# define BUFFER_SIZE 128
+# define PROC_NAME "jiffies"
+
+ssize_t proc_read(struct file *file, char __user *usr_buf, size_t count, loff_t *pos);
+
+static struct file_operations proc_ops = {
+  .owner = THIS_MODULE,
+  .read = proc_read,
+};
+
+int proc_init(void) {
+  /* create /proc files */
+  proc_create(PROC_NAME, 0666, NULL, &proc_ops);
+  printk(KERN_INFO "/proc/" PROC_NAME " is created!\n");
+  return 0;
+}
+
+void proc_exit(void) {
+  /* remove /proc files */
+  remove_proc_entry(PROC_NAME, NULL);
+  printk(KERN_INFO "/proc/" PROC_NAME " is removed!\n");
+}
+
+ssize_t proc_read(struct file *file, char __user *usr_buf, size_t count, loff_t *pos) {
+  int rv = 0;
+  char buffer[BUFFER_SIZE];
+  static int completed = 0;
+
+  if (completed) {
+    completed = 0;
+    return 0;
+  }
+
+  completed = 1;
+
+  rv = sprintf(buffer, "The current value of jiffies is: %lu\n", jiffies);
+
+  copy_to_user(usr_buf, buffer, rv);
+
+  return rv;
+}
+
+module_init(proc_init);
+module_exit(proc_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Jiffies Module");
+MODULE_AUTHOR("Galaxies");
+\end{lstlisting}
+
+The \texttt{Makefile} file is as follows.
+\begin{lstlisting}
+obj-m := jiffies.o
+
+all:
+	make -C /usr/src/linux-5.5.8/ M=$(shell pwd) modules
+clean:
+	make -C /usr/src/linux-5.5.8/ M=$(shell pwd) clean
+\end{lstlisting}
+
+We can use the following instruction to test the jiffies module.
+
+\begin{lstlisting}
+sudo make
+sudo dmesg -C
+sudo insmod jiffies.ko
+sudo dmesg
+cat /proc/jiffies
+cat /proc/jiffies
+sudo rmmod jiffies
+sudo dmesg
+\end{lstlisting}
+\clearpage
+The execution results of these instructions are as follows (Fig. \ref{fig13}).
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=5.5in]{pic13.png}\\
+  \caption{The execution results of the testing instructions of jiffies module}\label{fig13}
+\end{figure}
+
+\end{solution}
+\subsection{The Seconds Module}
+Design a kernel module that creates a \texttt{proc} file named \texttt{/proc/seconds} that reports the number of elapsed seconds since the kernel module was loaded. This will involve using the value of \texttt{jiffies} as well as the \texttt{HZ} rate. When a user enters the command
+\begin{lstlisting}
+cat /proc/jiffies
+\end{lstlisting}
+your kernel module will report the number of seconds that have elapsed since the kernel module was first loaded. Be sure to remove \texttt{/proc/seconds} when the module is removed.
+\begin{solution}
+We use the similar method (like the methods of the previous assignment) to solve this problem. Here are some explanations.
+\begin{itemize}
+  \item We use a variable to memorize the \texttt{jiffies} when we load the kernel module, say \texttt{begin\_count}. Then every time we need to know the number of seconds that have elapsed since the kernel module was first loaded, we can use the formula \texttt{(jiffies - begin\_count) / HZ} to get the answer. Notice that \underline{kernel mode do not support floating number operations}, therefore we can only give the integer answer to the number of seconds.
+  \item \texttt{HZ} is a system macro definition defined in the \texttt{linux/param.h}, which means the system clock frequency. Therefore, its value is changing all the time, and we have to include the corresponding headfile to use \texttt{HZ} (the headfile \texttt{linux/jiffies.h} has already included \texttt{linux/param.h}, so we do not need to write it again).
+  \item The data type of \texttt{jiffies} is \texttt{unsigned long volatile}, so we need to use the same data type to store the initial value of \texttt{jiffies}.
+\end{itemize}
+
+The \texttt{seconds.c} program is displayed as follows.
+
+\begin{lstlisting}[language=C++]
+# include <linux/init.h>
+# include <linux/kernel.h>
+# include <linux/module.h>
+# include <linux/proc_fs.h>
+# include <asm/uaccess.h>
+# include <linux/uaccess.h>
+# include <linux/jiffies.h>   // jiffies is in this headfile
+
+# define BUFFER_SIZE 128
+# define PROC_NAME "seconds"
+
+unsigned long volatile begin_count, seconds;
+
+ssize_t proc_read(struct file *file, char __user *usr_buf, size_t count, loff_t *pos);
+
+static struct file_operations proc_ops = {
+  .owner = THIS_MODULE,
+  .read = proc_read,
+};
+
+int proc_init(void) {
+  /* create /proc files */
+  proc_create(PROC_NAME, 0666, NULL, &proc_ops);
+  printk(KERN_INFO "/proc/" PROC_NAME " is created!\n");
+  begin_count = jiffies;
+  return 0;
+}
+
+void proc_exit(void) {
+  /* remove /proc files */
+  remove_proc_entry(PROC_NAME, NULL);
+  printk(KERN_INFO "/proc/" PROC_NAME " is removed!\n");
+}
+
+ssize_t proc_read(struct file *file, char __user *usr_buf, size_t count, loff_t *pos) {
+  int rv = 0;
+  char buffer[BUFFER_SIZE];
+  static int completed = 0;
+
+  if (completed) {
+    completed = 0;
+    return 0;
+  }
+
+  completed = 1;
+
+  seconds = (jiffies - begin_count) / HZ;
+  rv = sprintf(buffer, "%lu seconds have elapsed since the kernel module was first loaded\n", seconds);
+
+  copy_to_user(usr_buf, buffer, rv);
+
+  return rv;
+}
+
+module_init(proc_init);
+module_exit(proc_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Seconds Module");
+MODULE_AUTHOR("Galaxies");
+\end{lstlisting}
+
+The \texttt{Makefile} file is as follows.
+\begin{lstlisting}
+obj-m := seconds.o
+
+all:
+	make -C /usr/src/linux-5.5.8/ M=$(shell pwd) modules
+clean:
+	make -C /usr/src/linux-5.5.8/ M=$(shell pwd) clean
+\end{lstlisting}
+
+We can use the following instruction to test the seconds module.
+
+\begin{lstlisting}
+sudo make
+sudo dmesg -C
+sudo insmod seconds.ko
+sudo dmesg
+cat /proc/seconds
+cat /proc/seconds
+sudo rmmod seconds
+sudo dmesg
+\end{lstlisting}
+
+The execution results of these instructions are as follows (Fig. \ref{fig14}).
+
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=5.5in]{pic14.png}\\
+  \caption{The execution results of the testing instructions of seconds module}\label{fig14}
+\end{figure}
+
+\end{solution}
+
+\section{Personal Thoughts}
+
+During this project, I've experienced the process of compiling Linux Kernel and installing Linux Kernel. I also develop an brief understanding about Kernel Module and \texttt{/proc} file system, and I try to write the kernel modules related to \texttt{/proc} file system in the assignments. This experience benefits me a lot. The project helps me enhance my understanding of Linux Kernel and helps me improve my Linux Kernel programming skills.
+
+By the way, you can \underline{find all the source codes in the ``src'' folder}. You can also refer to \href{https://github.com/Galaxies99/CS307-Projects}{my github} to see my codes of this project, and they are in the \texttt{Project1} folder.
+
+
+%========================================================================
+\end{document}

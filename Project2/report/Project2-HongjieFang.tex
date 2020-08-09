@@ -1,0 +1,615 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage{ctex}
+\usepackage{amsmath,amscd,amsbsy,amssymb,latexsym,url,bm,amsthm}
+\usepackage{epsfig,graphicx,subfigure}
+\usepackage{enumitem,balance}
+\usepackage{enumerate}
+\usepackage{wrapfig}
+\usepackage{listings}
+\usepackage{mathrsfs,euscript}
+\usepackage[usenames]{xcolor}
+\usepackage{hyperref}
+\usepackage[vlined,ruled,linesnumbered]{algorithm2e}
+\hypersetup{colorlinks=true,linkcolor=black}
+\lstset{
+    breaklines,
+    basicstyle          =   \ttfamily,          % 基本代码风格
+    commentstyle        =   \rmfamily\itshape,  % 注释的风格，斜体
+    stringstyle         =   \ttfamily,  % 字符串风格
+    flexiblecolumns,                % 别问为什么，加上这个
+    numbers             =   left,   % 行号的位置在左边
+    showspaces          =   false,  % 是否显示空格，显示了有点乱，所以不现实了
+    numberstyle         =   \zihao{-5}\ttfamily,    % 行号的样式，小五号，tt 等宽字体
+    showstringspaces    =   false,
+    captionpos          =   t,      % 这段代码的名字所呈现的位置，t指的是top 上面
+    frame               =   lrtb,   % 显示边框
+    tabsize             =   2,
+}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{exercise}{Exercise}
+\newtheorem*{solution}{Solution}
+\newtheorem*{example}{Example}
+\newtheorem{definition}{Definition}
+\theoremstyle{definition}
+
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+
+\newcommand{\postscript}[2]
+ {\setlength{\epsfxsize}{#2\hsize}
+  \centerline{\epsfbox{#1}}}
+
+\renewcommand{\baselinestretch}{1.0}
+
+\setlength{\oddsidemargin}{-0.365in}
+\setlength{\evensidemargin}{-0.365in}
+\setlength{\topmargin}{-0.3in}
+\setlength{\headheight}{0in}
+\setlength{\headsep}{0in}
+\setlength{\textheight}{10.1in}
+\setlength{\textwidth}{7in}
+\makeatletter \renewenvironment{proof}[1][Proof] {\par\pushQED{\qed}\normalfont\topsep6\p@\@plus6\p@\relax\trivlist\item[\hskip\labelsep\bfseries#1\@addpunct{.}]\ignorespaces}{\popQED\endtrivlist\@endpefalse} \makeatother
+\makeatletter
+\renewenvironment{solution}[1][Solution] {\par\pushQED{\qed}\normalfont\topsep6\p@\@plus6\p@\relax\trivlist\item[\hskip\labelsep\bfseries#1\@addpunct{.}]\ignorespaces}{\popQED\endtrivlist\@endpefalse} \makeatother
+
+\begin{document}
+\noindent
+
+%========================================================================
+\noindent\framebox[1.05\linewidth]{\shortstack[c]{
+\Large{\textbf{Project 2: UNIX Shell Programming and}} \\ \Large{\textbf{Linux Kernel Module for Task Information}}\vspace{1mm}\\
+CS307-Operating System (D), CS356-Operating System Course Design, Chentao Wu, Spring 2020.}}
+\begin{center}
+\footnotesize{\color{blue}Name: 方泓杰 (Hongjie Fang)  \quad Student ID: 518030910150 \quad Email: galaxies@sjtu.edu.cn}
+\end{center}
+
+\section{UNIX Shell Programming}
+According to the project descriptions in textbook, we are required to write a UNIX Shell which provides the following functions.
+\begin{itemize}
+\item Creating the child process and executing the command in the child;
+\item Providing a history feature;
+\item Adding support of input and output redirection;
+\item Allowing the parent and child processes to communicate via a pipe.
+\end{itemize}
+\begin{solution}
+Here is my method to implement the simple UNIX Shell program (\texttt{shell.c}).
+\begin{itemize}
+  \item First, we implement a \texttt{standardlize\_inst} function to \underline{standardlize the instruction} in a standard form, which means there is no extra space and tab in the instruction.
+  \item After standardlization, we can \underline{check whether this instruction asks for concurrent execution}. If true, then we set the \texttt{concurrent} flag to 1, and the parent process do not have to execute \texttt{wait(NULL)} instruction to wait for its child process to finish execution since we can execute two processes concurrently.
+  \item Then we can handle some special instructions such as \texttt{exit} and \texttt{!!}.
+  \begin{itemize}
+  \item For \texttt{exit} instruction, we simply set the \texttt{should\_run} flag to false, then it will jump out of the loop and finish executing the main function;
+  \item For \texttt{!!} instruction, we store the last instruction in the variable \texttt{last\_inst} so we only need to \underline{replace the current instruction \texttt{inst} with the last instruction \texttt{last\_inst}}. To handle the error condition, we need to set a \texttt{have\_last\_inst} flag to check whether the current instruction do not have the previous instruction in the history.
+  \end{itemize}
+  \item After that, we create a child process using \texttt{fork()} function, and implement a \texttt{parse} function in child process to \underline{parse the instruction and return several arguments \texttt{args[]} of the instruction}. In parent process, we actually do nothing except waiting (if necessary).
+  \item After parsing instruction, we can check whether the instruction needs a pipe. If true, then we can \underline{use \texttt{pipe(pipe\_fd)} function to generate a pipe and use it to implement data transfer}. The implementation of pipe transfer is similar to Section 3.7.4 in textbook.
+  \item If the instruction does not need a pipe, then we can \underline{find out the input/output redirections} of the instruction by examining the result of parsing. If the instruction needs redirections, then we can \underline{redirect the input/output using \texttt{dup2(fd, ...)} function}.
+  \item Then, we can \underline{execute the instruction using the \texttt{execvp(...)} function} and the arguments \texttt{args[]} we have parsed before.
+  \item After execution, we need to \underline{release the spaces of variables, close the files}, and then we can exit from child process.
+\end{itemize}
+
+Here is the specific implementation of the UNIX Shell.
+\begin{lstlisting}[language=C++]
+# include <stdio.h>
+# include <fcntl.h>
+# include <stdlib.h>
+# include <string.h>
+# include <unistd.h>
+# include <sys/wait.h>
+# include <sys/types.h>
+
+# define MAX_LINE 80
+# define READ_END 0
+# define WRITE_END 1
+
+// Clear the string.
+void clear_str(char *str);
+
+// Check whether the instruction is concurrent.
+int check_concurrent(char *inst);
+
+// Standardlize the instruction.
+void standardlize_inst(char *inst);
+
+// Parse the instruction
+int parse(char *inst, char **args);
+
+// Debug program for parsing.
+void debug_parse(char *args[], int argn);
+
+int main(void) {
+	// arguments, instruction, last instruction
+	char *args[MAX_LINE / 2 + 1], *inst, *last_inst;
+	// whether have the last instruction, cocurrent status
+	int have_last_inst = 0, concurrent = 0;
+	// input redirect filename, output redirect filename
+	char *in_file, *out_file;
+
+	inst = (char*) malloc(MAX_LINE * sizeof(char));
+	last_inst = (char*) malloc(MAX_LINE * sizeof(char));
+	in_file = (char*) malloc(MAX_LINE * sizeof(char));
+	out_file = (char*) malloc(MAX_LINE * sizeof(char));
+
+	clear_str(last_inst);
+
+	int should_run = 1;
+
+	pid_t pid;
+
+	while(should_run) {
+		printf("osh> ");
+		fflush(stdout);
+		if (concurrent) wait(NULL);
+
+		concurrent = 0;
+		clear_str(inst);
+
+		fgets(inst, MAX_LINE, stdin);
+
+		standardlize_inst(inst);
+		concurrent = check_concurrent(inst);
+
+		// exit shell	
+		if (strcmp(inst, "exit") == 0) {
+			should_run = 0;
+			continue;
+		}
+
+		// execute the last instruction
+		if (strcmp(inst, "!!") == 0) {
+			if (have_last_inst == 0) {
+				fprintf(stderr, "Error: No commands in history.\n");
+				continue;
+			} else {
+				printf("%s\n", last_inst);
+				strcpy(inst, last_inst);
+			}
+		}
+
+		pid = fork();
+		if (pid < 0) fprintf(stderr, "Error: Fork failed!\n");
+		else {
+			if (pid == 0) {
+				// child process
+				// whether an error has occured
+				int error_occur = 0;
+
+				// allocate space for commands & arguments
+				for (int i = 0; i <= MAX_LINE / 2; ++ i)
+				args[i] = (char*) malloc(MAX_LINE * sizeof(char));
+				
+				// parse the instruction
+				int argn = parse(inst, args);
+
+				// free the space of extra commands & extra arguments
+				for (int i = argn; i <= MAX_LINE / 2; ++ i) {
+					free(args[i]);
+					args[i] = NULL;
+				}
+				if (concurrent == 1) {
+					-- argn;
+					free(args[argn]);
+					args[argn] = NULL;
+				}
+		
+				// find pipe
+				int pipe_pos = -1;
+				for (int i = 0; i < argn; ++ i)
+					if (strcmp(args[i], "|") == 0) {
+						pipe_pos = i;
+						break;
+					}
+
+				if(pipe_pos >= 0) {										
+					// pipe found
+					if (pipe_pos == 0 || pipe_pos == argn - 1) {
+						fprintf(stderr, "Error: Unexpected syntax '|'.\n");
+						error_occur = 1;
+					}
+													
+					// pipe fd
+					int pipe_fd[2];			
+
+					if (pipe(pipe_fd) == -1) {
+						fprintf(stderr, "Error: Pipe Failed!\n");
+						error_occur = 1;
+					}
+					
+					if(error_occur == 0) {
+						// fork a grandson process					
+						pid = fork();
+						if (pid < 0) {
+							fprintf(stderr, "Error: Fork failed!\n");
+							error_occur = 1;
+						} else {
+							if (pid == 0) {
+								// grandchild process
+								for (int i = pipe_pos; i < argn; ++ i) {
+									free(args[i]);
+									args[i] = NULL;
+								}
+								argn = pipe_pos;
+
+								close(pipe_fd[READ_END]);
+								if (error_occur == 0 && dup2(pipe_fd[WRITE_END], STDOUT_FILENO) < 0) {
+									fprintf(stderr, "Error: dup2 failed!\n");
+									error_occur = 1;
+								}
+							
+								if(error_occur == 0 && argn > 0) execvp(args[0], args);
+								
+								close(pipe_fd[WRITE_END]);
+							
+								// free the spaces
+								for (int i = 0; i < argn; ++ i) free(args[i]);
+								free(inst);
+								free(last_inst);
+								free(in_file);
+								free(out_file);
+								
+								exit(error_occur);
+							} else {
+								// child process
+								wait(NULL);
+								for (int i = 0; i <= pipe_pos; ++ i) free(args[i]);
+								for (int i = pipe_pos + 1; i < argn; ++ i) args[i - pipe_pos - 1] = args[i];
+								for (int i = argn - pipe_pos - 1; i < argn; ++ i) args[i] = NULL;
+								argn = argn - pipe_pos - 1;
+
+								close(pipe_fd[WRITE_END]);
+								if (error_occur == 0 && dup2(pipe_fd[READ_END], STDIN_FILENO) < 0) {
+									fprintf(stderr, "Error: dup2 failed!\n");
+									error_occur = 1;
+								}
+		
+								if(error_occur == 0 && argn > 0) execvp(args[0], args);
+								
+								close(pipe_fd[READ_END]);
+							}
+						}
+					}
+				} else {
+					// find in_redirect or out_redirect
+					int in_redirect = 0, out_redirect = 0, in_fd = -1, out_fd = -1;
+					while (argn >= 2 && (strcmp(args[argn - 2], "<") == 0 || strcmp(args[argn - 2], ">") == 0)) {
+						argn -= 2;
+						if (strcmp(args[argn], "<") == 0) {
+							in_redirect = 1;
+							strcpy(in_file, args[argn + 1]);
+						} else {
+							out_redirect = 1;
+							strcpy(out_file, args[argn + 1]);
+						}
+						free(args[argn]); args[argn] = NULL;
+						free(args[argn + 1]); args[argn + 1] = NULL;
+					}
+					
+					// redirect input
+					if (error_occur == 0 && in_redirect == 1) {
+						in_fd = open(in_file, O_RDONLY, 0644);
+						if (error_occur == 0 && in_fd < 0) {
+							fprintf(stderr, "Error: No such files.\n");
+							error_occur = 1;
+						}
+						if (error_occur == 0 && dup2(in_fd, STDIN_FILENO) < 0) {
+							fprintf(stderr, "Error: dup2 failed!\n");
+							error_occur = 1;
+						}
+					}
+					
+					// redirect output
+					if (error_occur == 0 && out_redirect == 1) {
+						out_fd = open(out_file, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+						if (error_occur == 0 && out_fd < 0) {
+							fprintf(stderr, "Error: No such files.\n");
+							error_occur = 1;
+						}
+						if (error_occur == 0 && dup2(out_fd, STDOUT_FILENO) < 0) {
+							fprintf(stderr, "Error: dup2 failed!\n");
+							error_occur = 1;
+						}
+					}
+				
+					// not an empty instruction & no error occur, then execute the instruction
+					if (error_occur == 0 && argn != 0)	
+						execvp(args[0], args);
+					
+					// close the files
+					if (in_redirect == 1 && in_fd > 0) close(in_fd);
+					if (out_redirect == 1 && out_fd > 0) close(out_fd);
+				}
+
+				// free the spaces
+				for (int i = 0; i < argn; ++ i) free(args[i]);
+				free(inst);
+				free(last_inst);
+				free(in_file);
+				free(out_file);
+	
+				// child process exit
+				exit(error_occur);
+			} else {
+				// parent process
+				if(concurrent == 0) wait(NULL);
+			}
+		}
+
+		if(have_last_inst == 0) have_last_inst = 1;
+		strcpy(last_inst, inst);
+	}
+	
+	// free the spaces
+	free(inst);
+	free(last_inst);
+	free(in_file);
+	free(out_file);
+	return 0;
+}
+
+
+// Clear the string.
+void clear_str(char *str) {
+	memset(str, 0, sizeof(str));
+}
+
+// Check whether the instruction is concurrent.
+int check_concurrent(char *inst) {
+	int len = strlen(inst);
+	if(len && inst[len - 1] == '&') return 1;
+	return 0;
+}
+
+// Standardlize the instruction.
+// Specific function: clear the extra space & tab & enter in the instruction.
+void standardlize_inst(char *inst) {
+	int len = strlen(inst);
+
+	char *temp = (char*) malloc(len * sizeof(char));
+	for (int i = 0; i < len; ++ i) temp[i] = inst[i];
+	clear_str(inst);
+
+	int new_len = 0, last_blank = 1;
+	for (int i = 0; i < len; ++ i) {
+		if (temp[i] == ' ' || temp[i] == '\n' || temp[i] == '\t') {
+			if (last_blank == 0) {
+				inst[new_len ++] = ' ';
+				last_blank = 1;
+			}
+		} else {
+			inst[new_len ++] = temp[i];
+			last_blank = 0;
+		}
+	}
+	if(inst[new_len - 1] == ' ') inst[new_len - 1] = 0;
+
+	free(temp);
+}
+
+// Parse the instruction.
+// Specific function: parse the instruction and find out the command & arguments.
+int parse(char *inst, char **args) {
+	int len = strlen(inst);
+
+	// find out the arguments
+	int argn = 0;
+	for (int i = 0; i < len; ++ i) {
+		clear_str(args[argn]);
+
+		int j = i;
+		while(j < len && inst[j] != ' ') {
+			args[argn][j - i] = inst[j];
+			++ j;
+		}
+		if ((args[argn][0] == '<' || args[argn][0] == '>' || args[argn][0] == '|') && j > i+1) {
+			strcpy(args[argn + 1], args[argn] + 1);
+			for (int k = 1; k < j - i; ++ k) args[argn][k] = 0;
+			++ argn;		
+		}
+		
+		i = j;
+		++ argn;
+	}
+
+	return argn;
+}
+
+// Debug program for parsing.
+void debug_parse(char *args[], int argn) {
+	fprintf(stderr, "Comm: %s, total %d arguments\n", args[0], argn);
+	for (int i = 0; i < argn; ++ i)
+		fprintf(stderr, "args[%d] = %s\n", i, args[i]);
+
+\end{lstlisting}
+
+We can test the UNIX Shell program by entering the following instructions. These instructions can test every required function of the UNIX Shell.
+\begin{lstlisting}
+gcc shell.c -o ./shell
+./shell
+!!
+ls -l
+!!
+ls -l > temp.res
+sort < temp.res
+ls
+ls -l
+ls -l | sort
+ls -l &
+ls
+./shell
+ls -a
+exit
+exit
+\end{lstlisting}
+
+Here is the execution result of my UNIX Shell program after entering the instructions (Fig. \ref{fig1}).
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=7in]{pic1.png}\\
+  \caption{The execution result of my UNIX Shell program}\label{fig1}
+\end{figure}
+
+
+\end{solution}
+\clearpage
+
+\section{Linux Kernel Module for Task Information}
+
+In this project, we are required to write a Linux kernel module that use the \texttt{/proc} file system for displaying a task's information based on its process identifier value \texttt{pid}.
+
+\begin{solution}
+Here is my method to implement the required Linux kernel module.
+\begin{itemize}
+  \item In \texttt{proc\_write} function, we can \underline{use the \texttt{kstrtol()} function to read the value from a string}. An important fact is that \texttt{usr\_buf} may do not have an end-of-string sign $'\backslash 0'$, therefore we need to \underline{add this sign to the end of the string manually}.
+  \item In \texttt{proc\_write} function, we need to \underline{use \texttt{kmalloc()} and \texttt{kfree()} function to allocate and release} \underline{memory}; they are actually the kernel version of \texttt{malloc()} and \texttt{free()}.
+  \item In \texttt{proc\_read} function, we can \underline{use the \texttt{pid\_task()} function to read the information in PCB}, and we need to use \texttt{find\_vpid()} to find the corresponding PCB using its \texttt{pid}. What we need are the \texttt{comm} and \texttt{state} value of the PCB.
+  \item We also \underline{perform an error checking for invalid \texttt{pid}}. This will cause the \texttt{pid\_task()} function returns \texttt{NULL}. We simply report the error and return 0.
+  \item The other parts of the program is very similar to project 1, we can use the similar methods to implement them.
+\end{itemize}
+
+Here is the specific implementation of the Linux kernel module for task information (\texttt{pid.c}).
+\begin{lstlisting}[language=C++]
+# include <linux/init.h>
+# include <linux/slab.h>
+# include <linux/sched.h>
+# include <linux/module.h>
+# include <linux/kernel.h>
+# include <linux/proc_fs.h>
+# include <linux/vmalloc.h>
+# include <linux/uaccess.h>
+# include <asm/uaccess.h>
+
+# define BUFFER_SIZE 128
+# define PROC_NAME "pid"
+
+// the current pid
+static long cur_pid;
+
+static ssize_t proc_read(struct file *file, char *buf, size_t count, loff_t *pos);
+static ssize_t proc_write(struct file *file, const char __user *usr_buf, size_t count, loff_t *pos);
+
+static struct file_operations proc_ops = {
+	.owner = THIS_MODULE,
+	.read = proc_read,
+	.write = proc_write,
+};
+
+static int proc_init(void) {
+	/* create /proc files */
+	proc_create(PROC_NAME, 0666, NULL, &proc_ops);
+	printk(KERN_INFO "/proc/" PROC_NAME " is created!\n");
+	return 0;
+}
+
+static void proc_exit(void) {
+	/* remove /proc files */
+	remove_proc_entry(PROC_NAME, NULL);
+	printk(KERN_INFO "/proc/" PROC_NAME " is removed!\n");
+}
+
+static ssize_t proc_read(struct file *file, char __user *usr_buf, size_t count, loff_t *pos) {
+	int rv = 0;
+	char buffer[BUFFER_SIZE];
+	static int completed = 0;
+	struct task_struct *PCB = NULL;
+
+	if (completed) {
+		completed = 0;
+		return 0;
+	}
+
+	PCB = pid_task(find_vpid(cur_pid), PIDTYPE_PID);
+	if (PCB == NULL) {
+		printk(KERN_INFO "Invalid PID!\n");
+		return 0;
+	}
+
+	completed = 1;
+
+	rv = sprintf(buffer, "command = [%s] pid = [%ld] state = [%ld]\n", PCB -> comm, cur_pid, PCB -> state);
+	
+	copy_to_user(usr_buf, buffer, rv);
+
+	return rv;
+}
+
+static ssize_t proc_write(struct file *file, const char __user *usr_buf, size_t count, loff_t *pos) {
+	char *k_mem;
+
+	// allocate kernel memory
+	k_mem = kmalloc(count, GFP_KERNEL);
+
+	// copies user space usr_buf to kernel buffer
+	if (copy_from_user(k_mem, usr_buf, count)) {
+		printk(KERN_INFO "Error copying from user\n");
+		return -1;
+	}
+	
+	// the end of string k_mem
+	k_mem[count] = 0;
+
+	// extract the number into the variable pid using kstrtol
+	kstrtol(k_mem, 10, &cur_pid);
+
+	// free the memory
+	kfree(k_mem);
+
+	return count;
+}
+
+module_init(proc_init);
+module_exit(proc_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Pid Module");
+MODULE_AUTHOR("Galaxies");
+\end{lstlisting}
+
+And here is the \texttt{Makefile} file of the project.
+\begin{lstlisting}
+obj-m := pid.o
+
+all:
+	make -C /usr/src/linux-5.5.8/ M=$(shell pwd) modules
+clean:
+	make -C /usr/src/linux-5.5.8/ M=$(shell pwd) clean
+\end{lstlisting}
+
+We can enter the following instructions to test the kernel module.
+\begin{lstlisting}
+make
+sudo dmesg -C
+sudo insmod pid.ko
+sudo dmesg
+echo "1395" > /proc/pid
+cat /proc/pid
+echo "1" > /proc/pid
+cat /proc/pid
+echo "5" > /proc/pid
+cat /proc/pid
+echo "6" > /proc/pid
+cat /proc/pid
+sudo rmmod pid
+sudo dmesg
+\end{lstlisting}
+\clearpage
+
+Here is the execution result of the program (Fig. \ref{fig2}).
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=7in]{pic2.png}\\
+  \caption{The execution result of my Linux Kernel module for task information}\label{fig2}
+\end{figure}
+
+
+\end{solution}
+
+\section{Personal Thoughts}
+During the first UNIX Shell project, I've experienced the process of implementing a simple UNIX Shell program. The implementation enhances my understandings of the pipe and input/output redirections. Actually the implementations of the UNIX Shell program is complicated than I thought before, which takes me about 4 hours to finish, and the amount of code reaches 8 KB. After finishing the project, I feel very fulfilled and I become more familiar with the Linux C instructions. I'm also getting well with the C language programming in Linux.
+
+The Linux kernel module for task information project enhances my understandings of \texttt{/proc} file system, and it strengthen my knowledge about it, which is important in Linux system.
+
+By the way, you can \underline{find all the source codes in the ``src'' folder}. You can also refer to \href{https://github.com/Galaxies99/CS307-Projects}{my github} to see my codes of this project, and they are in the \texttt{Project2} folder.
+%========================================================================
+\end{document}

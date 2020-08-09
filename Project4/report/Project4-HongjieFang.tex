@@ -1,0 +1,763 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage{ctex}
+\usepackage{amsmath,amscd,amsbsy,amssymb,latexsym,url,bm,amsthm}
+\usepackage{epsfig,graphicx,subfigure}
+\usepackage{enumitem,balance}
+\usepackage{enumerate}
+\usepackage{wrapfig}
+\usepackage{listings}
+\usepackage{mathrsfs,euscript}
+\usepackage[usenames]{xcolor}
+\usepackage{hyperref}
+\usepackage[vlined,ruled,linesnumbered]{algorithm2e}
+\hypersetup{colorlinks=true,linkcolor=black}
+\lstset{
+    breaklines,
+    basicstyle          =   \ttfamily,          % 基本代码风格
+    commentstyle        =   \rmfamily\itshape,  % 注释的风格，斜体
+    stringstyle         =   \ttfamily,  % 字符串风格
+    flexiblecolumns,                % 别问为什么，加上这个
+    numbers             =   left,   % 行号的位置在左边
+    showspaces          =   false,  % 是否显示空格，显示了有点乱，所以不现实了
+    numberstyle         =   \zihao{-5}\ttfamily,    % 行号的样式，小五号，tt 等宽字体
+    showstringspaces    =   false,
+    captionpos          =   t,      % 这段代码的名字所呈现的位置，t指的是top 上面
+    frame               =   lrtb,   % 显示边框
+    tabsize             =   2,
+}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{exercise}{Exercise}
+\newtheorem*{solution}{Solution}
+\newtheorem*{example}{Example}
+\newtheorem{definition}{Definition}
+\theoremstyle{definition}
+
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+
+\newcommand{\postscript}[2]
+ {\setlength{\epsfxsize}{#2\hsize}
+  \centerline{\epsfbox{#1}}}
+
+\renewcommand{\baselinestretch}{1.0}
+
+\setlength{\oddsidemargin}{-0.365in}
+\setlength{\evensidemargin}{-0.365in}
+\setlength{\topmargin}{-0.3in}
+\setlength{\headheight}{0in}
+\setlength{\headsep}{0in}
+\setlength{\textheight}{10.1in}
+\setlength{\textwidth}{7in}
+\makeatletter \renewenvironment{proof}[1][Proof] {\par\pushQED{\qed}\normalfont\topsep6\p@\@plus6\p@\relax\trivlist\item[\hskip\labelsep\bfseries#1\@addpunct{.}]\ignorespaces}{\popQED\endtrivlist\@endpefalse} \makeatother
+\makeatletter
+\renewenvironment{solution}[1][Solution] {\par\pushQED{\qed}\normalfont\topsep6\p@\@plus6\p@\relax\trivlist\item[\hskip\labelsep\bfseries#1\@addpunct{.}]\ignorespaces}{\popQED\endtrivlist\@endpefalse} \makeatother
+
+\begin{document}
+\noindent
+
+%========================================================================
+\noindent\framebox[1.05\linewidth]{\shortstack[c]{
+\Large{\textbf{Project 4: Scheduling Algorithms}}\vspace{1mm}\\
+CS307-Operating System (D), CS356-Operating System Course Design, Chentao Wu, Spring 2020.}}
+\begin{center}
+\footnotesize{\color{blue}Name: 方泓杰 (Hongjie Fang)  \quad Student ID: 518030910150 \quad Email: galaxies@sjtu.edu.cn}
+\end{center}
+
+\section{Scheduling Algorithms}
+\subsection{Requirements}
+In this project, we are required to implement several different process scheduling algorithms. The scheduler will be assigned as a predefined set of tasks and will schedule the task based on the selected scheduling algorithm. Each task is assigned a priority and CPU burst. The following scheduing algorithms will be implemented.
+\begin{itemize}
+  \item First-come, first-served (FCFS), which schedules tasks in the order in which they request the CPU;
+  \item Shortest-job-first (SJF), which schedules tasks in the order of the length of the tasks' next CPU burst;
+  \item Priority scheduling, which schedules tasks based on priority;
+  \item Round-robin (RR) scheduling, where each task is run for a time quantum (or for the remainder of its CPU burst);
+  \item Priority with round-robin, which schedules tasks in the order of priority and uses round-robin scheduling for tasks with equal priority.
+\end{itemize}
+
+Priorities range from $1$ to $10$, where a higher numeric value indicates a higher relative priority. For round-robin scheduling, the length of a time quantum is $10$ milliseconds.
+
+The implementation of this project may be completed in either C or Java, and the program files supporting both of these languages are provided in the source code download for the textbook. These supporting files read in the schedule of tasks, insert the tasks into a list, and invoke the scheduler.
+
+The schedule of tasks has the form \textbf{\textit{[task name] [priority] [CPU burst]}}.
+
+There are a few different strategies for organizing the list of tasks. One approach is to place all tasks in a single unordered list, where the strategy for task selection depends on the scheduling algorithm. You are likely to find the functionality of a general list to be more suitable when completing this project.
+
+\textbf{Further Challenges}: two additional challenges are presented for this project:
+\begin{itemize}
+\item \textbf{a. } Each task provided to the scheduler is assigned a unique task (\texttt{tid}). If a scheduler is running in a SMP environment where each CPU is separately running its own scheduler, there is a possible race condition on the variable that is used to assign task identifiers. Fix this race condition using an atomic integer.
+\item \textbf{b. } Calculate the average turnaround time, waiting time and response time for each of the scheduling algorithms.
+\end{itemize}
+
+\subsection{Solutions}
+I use \underline{C programming language} to implement this project, and I also \underline{complete the further challenges} in my code, which I'll explain later. \underline{We will use the data stored in \texttt{schedule.txt} to test our algorithms}.
+
+\subsubsection{FCFS Scheduler}
+Here are the brief methods about implementing FCFS scheduler.
+\begin{itemize}
+\item The introduction of FCFS scheduling algorithm is in textbook, and we don't discuss the details of the algorithm here. You can refer to textbook to get more information.
+\item To complete the FCFS scheduler, we need to find out the first-come process in the process list. Since we add every new process in the beginning of our process list in \texttt{insert(...)} function in \texttt{list.c}, \underline{the first-come process is in the end of the list}. Therefore we can find the last process of the list and make it the next task to complete.
+\item To solve the further challenge \textbf{a}, we add a task identifiers variable \texttt{tid\_value} in code \texttt{task.h} and \texttt{task.c}, and we \underline{use the atomic function \texttt{\_\_sync\_fetch\_and\_add(\&x, y)} provided by Linux} to solve the racing conditions. This function is atomic and has the functionality of adding the variable \texttt{x} by \texttt{y} and returning the value of the original \texttt{x}. Therefore, we can use it to update \texttt{tid\_value} and allocate task identifiers.
+\item We also make a few modifications to the \texttt{Makefile} file because we add \texttt{task.c} to implement the task identifer. You can refer to the code for details.
+\item To solve the further challenge \textbf{b}, we add some extra variables in the definition of \texttt{struct task}. The extra variables \underline{record the arrival time, the waiting time, the time of the last execution,} \underline{the response time and the turnaround time of the current task}. And we update these variables when the task is executed. Therefore, when we finish the task, we can add the counting elements into global counting elements to calculate the average waiting time, average response time and average turnaround time. When all the tasks are finished, we will print these statistics in the screen.
+\end{itemize}
+
+Here is the specific implementation of the FCFS scheduler. (\texttt{schedule\_fcfs.c}).
+
+\begin{lstlisting}[language=c]
+# include <stdio.h>
+# include <stdlib.h>
+# include <string.h>
+
+# include "task.h"
+# include "list.h"
+# include "cpu.h"
+# include "schedulers.h"
+
+struct node *head = NULL;
+
+// Extra variables for calculating the response time, etc.
+// |-- current time.
+int time = 0;
+// |-- task count.
+int tsk_cnt = 0;
+// |-- total waiting time.
+int tot_wait_time = 0;
+// |-- total response time.
+int tot_resp_time = 0;
+// |-- total turnaround time.
+int tot_turn_time = 0;
+
+void add(char *name, int priority, int burst) {
+	Task *tsk;
+	tsk = (Task *) malloc (sizeof(Task));
+	// avoid racing conditions on tid_value.
+	tsk -> tid = __sync_fetch_and_add(&tid_value, 1);
+	tsk -> name = (char *) malloc (sizeof(char) * (1 + strlen(name)));
+	strcpy(tsk -> name, name);
+	tsk -> priority = priority;
+	tsk -> burst = burst;
+	// Record some extra parameters here to calculate the response time, etc.
+	tsk -> arri_time = time;
+	tsk -> last_exec = time;
+	tsk -> wait_time = 0;
+	tsk -> resp_time = 0;
+	tsk -> turn_time = 0;
+	insert(&head, tsk);
+}
+
+int schedule_next() {
+	if (head == NULL) return 1;
+	
+	struct node *cur = head;
+	while (cur -> next != NULL) cur = cur -> next;
+	
+	Task *tsk = cur -> task;
+	run(tsk, tsk -> burst);
+	delete(&head, tsk);
+	
+	time += tsk -> burst;
+
+	// Update some parameters.
+	// |-- last waiting time.
+	int last_wait_time = time - tsk -> last_exec - tsk -> burst;
+	// |-- update waiting time.	
+	tsk -> wait_time += last_wait_time;
+	// |-- update response time.	
+	if (tsk -> last_exec == tsk -> arri_time)
+		tsk -> resp_time = last_wait_time;
+	// |-- update last execution time.	
+	tsk -> last_exec = time;
+	
+	// The task is finished, update more parameters.
+	// |-- update turnaround time.
+	tsk -> turn_time = time - tsk -> arri_time;
+	
+	// Update final counting parameters.
+	tsk_cnt += 1;
+	tot_wait_time += tsk -> wait_time;
+	tot_resp_time += tsk -> resp_time;
+	tot_turn_time += tsk -> turn_time;
+
+	free(tsk -> name);
+	free(tsk);
+	return 0;
+}
+
+void print_statistics() {
+	printf("[Statistics] total %d tasks.\n", tsk_cnt);
+	double avg_wait_time = 1.0 * tot_wait_time / tsk_cnt;
+	double avg_resp_time = 1.0 * tot_resp_time / tsk_cnt;
+	double avg_turn_time = 1.0 * tot_turn_time / tsk_cnt;
+	printf("  Average Waiting Time: %.6lf\n", avg_wait_time);
+	printf("  Average Response Time: %.6lf\n", avg_resp_time);
+	printf("  Average Turnaround Time: %.6lf\n", avg_turn_time);
+}
+
+void schedule() {
+	while (schedule_next() == 0);
+	print_statistics();
+}
+\end{lstlisting}
+
+You can enter these instructions to test the FCFS scheduler.
+\begin{lstlisting}
+make fcfs
+./fcfs schedule.txt
+\end{lstlisting}
+
+Here is the execution result of the program (Fig. \ref{fig1}).
+
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=5.5in]{pic1.png}\\
+  \caption{The execution result of FCFS scheduler}\label{fig1}
+\end{figure}
+
+\subsubsection{SJF Scheduler}
+Here are the brief methods about implementing SJF scheduler.
+\begin{itemize}
+\item The introduction of SJF scheduling algorithm is in textbook, and we don't discuss the details of the algorithm here. You can refer to textbook to get more information.
+\item To complete the SJF scheduler, we need to find out the shortest-burst-time process in the process list. Therefore we need to \underline{traverse the list to find out the shortest task} and make it the next task to execute.
+\item We use the similar method as the FCFS scheduler to solve the further challenge \textbf{a} and \textbf{b}. You can refer to the corresponding section for details.
+\end{itemize}
+
+Here is the specific implementation of the SJF scheduler. (\texttt{schedule\_sjf.c}).
+
+\begin{lstlisting}[language=c]
+# include <stdio.h>
+# include <stdlib.h>
+# include <string.h>
+
+# include "task.h"
+# include "list.h"
+# include "cpu.h"
+# include "schedulers.h"
+
+struct node *head = NULL;
+
+// Extra variables for calculating the response time, etc.
+// |-- current time.
+int time = 0;
+// |-- task count.
+int tsk_cnt = 0;
+// |-- total waiting time.
+int tot_wait_time = 0;
+// |-- total response time.
+int tot_resp_time = 0;
+// |-- total turnaround time.
+int tot_turn_time = 0;
+
+void add(char *name, int priority, int burst) {
+	Task *tsk;
+	tsk = (Task *) malloc (sizeof(Task));
+	// avoid racing conditions on tid_value.
+	tsk -> tid = __sync_fetch_and_add(&tid_value, 1);
+	tsk -> name = (char *) malloc (sizeof(char) * (1 + strlen(name)));
+	strcpy(tsk -> name, name);
+	tsk -> priority = priority;
+	tsk -> burst = burst;
+	// Record some extra parameters here to calculate the response time, etc.
+	tsk -> arri_time = time;
+	tsk -> last_exec = time;
+	tsk -> wait_time = 0;
+	tsk -> resp_time = 0;
+	tsk -> turn_time = 0;
+	insert(&head, tsk);
+}
+
+int schedule_next() {
+	if (head == NULL) return 1;
+	
+	struct node *cur = head, *pos = head -> next;
+	while (pos != NULL) {
+		if (pos -> task -> burst <= cur -> task -> burst) cur = pos;
+		pos = pos -> next;
+	}
+	
+	Task *tsk = cur -> task;
+	run(tsk, tsk -> burst);
+	delete(&head, tsk);
+
+	time += tsk -> burst;
+
+	// Update some parameters.
+	// |-- last waiting time.
+	int last_wait_time = time - tsk -> last_exec - tsk -> burst;
+	// |-- update waiting time.	
+	tsk -> wait_time += last_wait_time;
+	// |-- update response time.	
+	if (tsk -> last_exec == tsk -> arri_time)
+		tsk -> resp_time = last_wait_time;
+	// |-- update last execution time.	
+	tsk -> last_exec = time;
+	
+	// The task is finished, update more parameters.
+	// |-- update turnaround time.
+	tsk -> turn_time = time - tsk -> arri_time;
+	
+	// Update final counting parameters.
+	tsk_cnt += 1;
+	tot_wait_time += tsk -> wait_time;
+	tot_resp_time += tsk -> resp_time;
+	tot_turn_time+= tsk -> turn_time;
+
+	free(tsk -> name);
+	free(tsk);
+	return 0;
+}
+
+void print_statistics() {
+	printf("[Statistics] total %d tasks.\n", tsk_cnt);
+	double avg_wait_time = 1.0 * tot_wait_time / tsk_cnt;
+	double avg_resp_time = 1.0 * tot_resp_time / tsk_cnt;
+	double avg_turn_time = 1.0 * tot_turn_time / tsk_cnt;
+	printf("  Average Waiting Time: %.6lf\n", avg_wait_time);
+	printf("  Average Response Time: %.6lf\n", avg_resp_time);
+	printf("  Average Turnaround Time: %.6lf\n", avg_turn_time);
+}
+
+void schedule() {
+	while (schedule_next() == 0);
+	print_statistics();
+}
+\end{lstlisting}
+
+You can enter these instructions to test the SJF scheduler.
+\begin{lstlisting}
+make sjf
+./sjf schedule.txt
+\end{lstlisting}
+
+Here is the execution result of the program (Fig. \ref{fig2}).
+
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=5.5in]{pic2.png}\\
+  \caption{The execution result of SJF scheduler}\label{fig2}
+\end{figure}
+
+\subsubsection{Priority Scheduler}
+Here are the brief methods about implementing priority scheduler.
+\begin{itemize}
+\item The introduction of priority-based scheduling algorithm is in textbook, and we don't discuss the details of the algorithm here. You can refer to textbook to get more information.
+\item To complete the priority scheduler, we need to find out the highest-priority process in the process list. Therefore we need to \underline{traverse the list to find out the task with the highest priority} and make it the next task to execute.
+\item We use the similar method as the FCFS scheduler to solve the further challenge \textbf{a} and \textbf{b}. You can refer to the corresponding section for details.
+\end{itemize}
+
+Here is the specific implementation of the priority scheduler. (\texttt{schedule\_priority.c}).
+
+\begin{lstlisting}[language=c]
+# include <stdio.h>
+# include <stdlib.h>
+# include <string.h>
+
+# include "task.h"
+# include "list.h"
+# include "cpu.h"
+# include "schedulers.h"
+
+struct node *head = NULL;
+
+// Extra variables for calculating the response time, etc.
+// |-- current time.
+int time = 0;
+// |-- task count.
+int tsk_cnt = 0;
+// |-- total waiting time.
+int tot_wait_time = 0;
+// |-- total response time.
+int tot_resp_time = 0;
+// |-- total turnaround time.
+int tot_turn_time = 0;
+
+void add(char *name, int priority, int burst) {
+	Task *tsk;
+	tsk = (Task *) malloc (sizeof(Task));
+	// avoid racing conditions on tid_value.
+	tsk -> tid = __sync_fetch_and_add(&tid_value, 1);
+	tsk -> name = (char *) malloc (sizeof(char) * (1 + strlen(name)));
+	strcpy(tsk -> name, name);
+	tsk -> priority = priority;
+	tsk -> burst = burst;
+	// Record some extra parameters here to calculate the response time, etc.
+	tsk -> arri_time = time;
+	tsk -> last_exec = time;
+	tsk -> wait_time = 0;
+	tsk -> resp_time = 0;
+	tsk -> turn_time = 0;
+	insert(&head, tsk);
+}
+
+int schedule_next() {
+	if (head == NULL) return 1;
+	
+	struct node *cur = head, *pos = head -> next;
+	while (pos != NULL) {
+		if (pos -> task -> priority >= cur -> task -> priority) cur = pos;
+		pos = pos -> next;
+	}
+	
+	Task *tsk = cur -> task;
+	run(tsk, tsk -> burst);
+	delete(&head, tsk);
+
+	time += tsk -> burst;
+
+	// Update some parameters.
+	// |-- last waiting time.
+	int last_wait_time = time - tsk -> last_exec - tsk -> burst;
+	// |-- update waiting time.	
+	tsk -> wait_time += last_wait_time;
+	// |-- update response time.	
+	if (tsk -> last_exec == tsk -> arri_time)
+		tsk -> resp_time = last_wait_time;
+	// |-- update last execution time.	
+	tsk -> last_exec = time;
+	
+	// The task is finished, update more parameters.
+	// |-- update turnaround time.
+	tsk -> turn_time = time - tsk -> arri_time;
+	
+	// Update final counting parameters.
+	tsk_cnt += 1;
+	tot_wait_time += tsk -> wait_time;
+	tot_resp_time += tsk -> resp_time;
+	tot_turn_time+= tsk -> turn_time;
+
+	free(tsk -> name);
+	free(tsk);
+	return 0;
+}
+
+void print_statistics() {
+	printf("[Statistics] total %d tasks.\n", tsk_cnt);
+	double avg_wait_time = 1.0 * tot_wait_time / tsk_cnt;
+	double avg_resp_time = 1.0 * tot_resp_time / tsk_cnt;
+	double avg_turn_time = 1.0 * tot_turn_time / tsk_cnt;
+	printf("  Average Waiting Time: %.6lf\n", avg_wait_time);
+	printf("  Average Response Time: %.6lf\n", avg_resp_time);
+	printf("  Average Turnaround Time: %.6lf\n", avg_turn_time);
+}
+
+void schedule() {
+	while (schedule_next() == 0);
+	print_statistics();
+}
+\end{lstlisting}
+
+You can enter these instructions to test the priority scheduler.
+\begin{lstlisting}
+make priority
+./priority schedule.txt
+\end{lstlisting}
+\clearpage
+Here is the execution result of the program (Fig. \ref{fig3}).
+
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=5.5in]{pic3.png}\\
+  \caption{The execution result of priority scheduler}\label{fig3}
+\end{figure}
+
+\subsubsection{RR Scheduler}
+Here are the brief methods about implementing RR scheduler.
+\begin{itemize}
+\item The introduction of RR (Round-Robin) scheduling algorithm is in textbook, and we don't discuss the details of the algorithm here. You can refer to textbook to get more information.
+\item To complete the RR scheduler, we need to \underline{execute the tasks in a certain turn}. We execute the current task for a time slice, and if the current task is not finished, we will put it into the beginning of the list, waiting for the next execution.
+\item We use the similar method as the FCFS scheduler to solve the further challenge \textbf{a} and \textbf{b}. You can refer to the corresponding section for details.
+\end{itemize}
+
+Here is the specific implementation of the RR scheduler. (\texttt{schedule\_rr.c}).
+
+\begin{lstlisting}[language=c]
+# include <stdio.h>
+# include <stdlib.h>
+# include <string.h>
+
+# include "task.h"
+# include "list.h"
+# include "cpu.h"
+# include "schedulers.h"
+
+struct node *head = NULL;
+
+// Extra variables for calculating the response time, etc.
+// |-- current time.
+int time = 0;
+// |-- task count.
+int tsk_cnt = 0;
+// |-- total waiting time.
+int tot_wait_time = 0;
+// |-- total response time.
+int tot_resp_time = 0;
+// |-- total turnaround time.
+int tot_turn_time = 0;
+
+void add(char *name, int priority, int burst) {
+	Task *tsk;
+	tsk = (Task *) malloc (sizeof(Task));
+	// avoid racing conditions on tid_value.
+	tsk -> tid = __sync_fetch_and_add(&tid_value, 1);
+	tsk -> name = (char *) malloc (sizeof(char) * (1 + strlen(name)));
+	strcpy(tsk -> name, name);
+	tsk -> priority = priority;
+	tsk -> burst = burst;
+	// Record some extra parameters here to calculate the response time, etc.
+	tsk -> arri_time = time;
+	tsk -> last_exec = time;
+	tsk -> wait_time = 0;
+	tsk -> resp_time = 0;
+	tsk -> turn_time = 0;
+	insert(&head, tsk);
+}
+
+int schedule_next() {
+	if (head == NULL) return 1;
+	
+	struct node *cur = head;
+	while (cur -> next != NULL) cur = cur -> next;
+	
+	Task *tsk = cur -> task;
+	if (tsk -> burst <= QUANTUM) {
+		run(tsk, tsk -> burst);
+		delete(&head, tsk);
+		
+		time += tsk -> burst;
+
+		// Update some parameters.
+		// |-- last waiting time.
+		int last_wait_time = time - tsk -> last_exec - tsk -> burst;
+		// |-- update waiting time.	
+		tsk -> wait_time += last_wait_time;
+		// |-- update response time.	
+		if (tsk -> last_exec == tsk -> arri_time)
+			tsk -> resp_time = last_wait_time;
+		// |-- update last execution time.	
+		tsk -> last_exec = time;
+		
+		// The task is finished, update more parameters.
+		// |-- update turnaround time.
+		tsk -> turn_time = time - tsk -> arri_time;
+		
+		// Update final counting parameters.
+		tsk_cnt += 1;
+		tot_wait_time += tsk -> wait_time;
+		tot_resp_time += tsk -> resp_time;
+		tot_turn_time+= tsk -> turn_time;
+
+		free(tsk -> name);
+		free(tsk);
+	} else {
+		run(tsk, QUANTUM);
+		delete(&head, tsk);
+		
+		time += QUANTUM;
+		tsk -> burst = tsk -> burst - QUANTUM;
+
+		// Update some parameters.
+		// |-- last waiting time.
+		int last_wait_time = time - tsk -> last_exec - QUANTUM;
+		// |-- update waiting time.	
+		tsk -> wait_time += last_wait_time;
+		// |-- update response time.	
+		if (tsk -> last_exec == tsk -> arri_time)
+			tsk -> resp_time = last_wait_time;
+		// |-- update last execution time.	
+		tsk -> last_exec = time;
+
+		insert(&head, tsk);
+	}
+	return 0;
+}
+
+void print_statistics() {
+	printf("[Statistics] total %d tasks.\n", tsk_cnt);
+	double avg_wait_time = 1.0 * tot_wait_time / tsk_cnt;
+	double avg_resp_time = 1.0 * tot_resp_time / tsk_cnt;
+	double avg_turn_time = 1.0 * tot_turn_time / tsk_cnt;
+	printf("  Average Waiting Time: %.6lf\n", avg_wait_time);
+	printf("  Average Response Time: %.6lf\n", avg_resp_time);
+	printf("  Average Turnaround Time: %.6lf\n", avg_turn_time);
+}
+
+void schedule() {
+	while (schedule_next() == 0);
+	print_statistics();
+}
+\end{lstlisting}
+
+You can enter these instructions to test the RR scheduler.
+\begin{lstlisting}
+make rr
+./rr schedule.txt
+\end{lstlisting}
+
+Here is the execution result of the program (Fig. \ref{fig4}).
+
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=5.5in]{pic4.png}\\
+  \caption{The execution result of RR scheduler}\label{fig4}
+\end{figure}
+
+\subsubsection{Priority-RR Scheduler}
+Here are the brief methods about implementing Priority-RR scheduler.
+\begin{itemize}
+\item The introduction of Priority-RR scheduling algorithm is in textbook, and we don't discuss the details of the algorithm here. You can refer to textbook to get more information.
+\item To complete the Priority-RR scheduler, we can implement several list and \underline{use list $i$ to store the} \underline{tasks with priority $i$}. Therefore we can check the list in the priority turn and implement RR scheduler in each list.
+\item We use the similar method as the FCFS scheduler to solve the further challenge \textbf{a} and \textbf{b}. You can refer to the corresponding section for details.
+\end{itemize}
+
+Here is the specific implementation of the Priority-RR scheduler. (\texttt{schedule\_priority\_rr.c}).
+
+\begin{lstlisting}[language=c]
+# include <stdio.h>
+# include <stdlib.h>
+# include <string.h>
+
+# include "task.h"
+# include "list.h"
+# include "cpu.h"
+# include "schedulers.h"
+
+# define PRIORITY_NUMBER_SIZE (MAX_PRIORITY - MIN_PRIORITY + 1)
+# define PRIORITY_BASE MIN_PRIORITY
+
+struct node *head[PRIORITY_NUMBER_SIZE] = {};
+
+// Extra variables for calculating the response time, etc.
+// |-- current time.
+int time = 0;
+// |-- task count.
+int tsk_cnt = 0;
+// |-- total waiting time.
+int tot_wait_time = 0;
+// |-- total response time.
+int tot_resp_time = 0;
+// |-- total turnaround time.
+int tot_turn_time = 0;
+
+void add(char *name, int priority, int burst) {
+	Task *tsk;
+	tsk = (Task *) malloc (sizeof(Task));
+	// avoid racing conditions on tid_value.
+	tsk -> tid = __sync_fetch_and_add(&tid_value, 1);
+	tsk -> name = (char *) malloc (sizeof(char) * (1 + strlen(name)));
+	strcpy(tsk -> name, name);
+	tsk -> priority = priority;
+	tsk -> burst = burst;	
+	// Record some extra parameters here to calculate the response time, etc.
+	tsk -> arri_time = time;
+	tsk -> last_exec = time;
+	tsk -> wait_time = 0;
+	tsk -> resp_time = 0;
+	tsk -> turn_time = 0;
+	insert(&head[priority - PRIORITY_BASE], tsk);
+}
+
+int schedule_next(int priority) {
+	if (head[priority - PRIORITY_BASE] == NULL) return 1;
+	
+	struct node *cur = head[priority - PRIORITY_BASE];
+	while (cur -> next != NULL) cur = cur -> next;
+	
+	Task *tsk = cur -> task;
+	if (tsk -> burst <= QUANTUM) {
+		run(tsk, tsk -> burst);
+		delete(&head[priority - PRIORITY_BASE], tsk);
+
+		time += tsk -> burst;
+
+		// Update some parameters.
+		// |-- last waiting time.
+		int last_wait_time = time - tsk -> last_exec - tsk -> burst;
+		// |-- update waiting time.	
+		tsk -> wait_time += last_wait_time;
+		// |-- update response time.	
+		if (tsk -> last_exec == tsk -> arri_time)
+			tsk -> resp_time = last_wait_time;
+		// |-- update last execution time.	
+		tsk -> last_exec = time;
+		
+		// The task is finished, update more parameters.
+		// |-- update turnaround time.
+		tsk -> turn_time = time - tsk -> arri_time;
+		
+		// Update final counting parameters.
+		tsk_cnt += 1;
+		tot_wait_time += tsk -> wait_time;
+		tot_resp_time += tsk -> resp_time;
+		tot_turn_time+= tsk -> turn_time;
+
+		free(tsk -> name);
+		free(tsk);
+	} else {
+		run(tsk, QUANTUM);
+		delete(&head[priority - PRIORITY_BASE], tsk);
+
+		time += QUANTUM;
+		tsk -> burst = tsk -> burst - QUANTUM;
+
+		// Update some parameters.
+		// |-- last waiting time.
+		int last_wait_time = time - tsk -> last_exec - QUANTUM;
+		// |-- update waiting time.	
+		tsk -> wait_time += last_wait_time;
+		// |-- update response time.	
+		if (tsk -> last_exec == tsk -> arri_time)
+			tsk -> resp_time = last_wait_time;
+		// |-- update last execution time.	
+		tsk -> last_exec = time;
+
+		insert(&head[priority - PRIORITY_BASE], tsk);
+	}
+	return 0;
+}
+
+void print_statistics() {
+	printf("[Statistics] total %d tasks.\n", tsk_cnt);
+	double avg_wait_time = 1.0 * tot_wait_time / tsk_cnt;
+	double avg_resp_time = 1.0 * tot_resp_time / tsk_cnt;
+	double avg_turn_time = 1.0 * tot_turn_time / tsk_cnt;
+	printf("  Average Waiting Time: %.6lf\n", avg_wait_time);
+	printf("  Average Response Time: %.6lf\n", avg_resp_time);
+	printf("  Average Turnaround Time: %.6lf\n", avg_turn_time);
+}
+
+void schedule() {
+	for (int i = MAX_PRIORITY; i >= MIN_PRIORITY; -- i)
+		while (schedule_next(i) == 0);
+	print_statistics();
+}
+\end{lstlisting}
+
+You can enter these instructions to test the Priority-RR scheduler.
+\begin{lstlisting}
+make priority_rr
+./priority_rr schedule.txt
+\end{lstlisting}
+
+Here is the execution result of the program (Fig. \ref{fig5}).
+
+\begin{figure}[htbp]
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[width=5.5in]{pic5.png}\\
+  \caption{The execution result of Priority-RR scheduler}\label{fig5}
+\end{figure}
+
+\subsection{Summary}
+From the execution results (Fig. \ref{fig1} to Fig. \ref{fig5}), we can check the performance metrics of these schedulers, and it is easy to verify that SJF scheduler has the shortest average waiting time. Since this project wants the scheduler to use the same data structure to organize the unfinished tasks, we can use the unordered list for convenience, or we can use queue and heap (priority queue) to optimize the scheduler for better performance.
+
+\section{Personal Thoughts}
+This project improves my understanding about scheduling algorithms, and I also gain knowledge about atomic variables during solving the further challenges, which benefits me a lot.
+
+By the way, you can \underline{find all the source codes in the ``src'' folder}. You can also refer to \href{https://github.com/Galaxies99/CS307-Projects}{my github} to see my codes of this project, and they are in the \texttt{Project4} folder.
+%========================================================================
+\end{document}
